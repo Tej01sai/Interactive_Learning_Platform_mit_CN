@@ -3,204 +3,145 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
-<title>Bandwidth Calculator</title>
+<meta name="description" content="Bandwidth Calculator — NETLEARN Network Tools">
+<title>Bandwidth Calculator — NETLEARN</title>
 <link rel="stylesheet" href="style.css">
 <style>
-  .input-group {
-    display: grid;
-    grid-template-columns: 1fr 100px;
-    gap: 8px;
-  }
-
-  .result-hero {
-    text-align: center;
-    padding: 20px 0 10px;
-  }
-
-  .result-hero .time-val {
-    font-size: 36px;
-    font-weight: 800;
-    color: var(--primary);
-    line-height: 1;
-  }
-
-  .result-hero .time-unit {
-    font-size: 14px;
-    color: var(--text-muted);
-    margin-top: 4px;
-  }
-
-  .compare-item {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    padding: 8px 0;
-    border-bottom: 1px solid var(--border);
-    font-size: 13px;
-  }
-
-  .compare-item:last-child { border-bottom: none; }
-
-  .compare-item .conn-name {
-    width: 90px;
-    color: var(--text-muted);
-    flex-shrink: 0;
-  }
-
-  .compare-item .progress-wrap {
-    flex: 1;
-  }
-
-  .compare-item .conn-time {
-    width: 70px;
-    text-align: right;
-    font-family: monospace;
-    font-size: 12px;
-    font-weight: 600;
-    color: var(--text);
-  }
+  .tools-tabs { display:flex; gap:0; padding:8px 16px 0; }
+  .tools-tab { flex:1; text-align:center; padding:10px 2px; font-family:var(--font-display); font-size:8px; font-weight:700; letter-spacing:0.06em; color:var(--text-muted); border-bottom:2px solid var(--bg-tertiary); cursor:pointer; transition:all 0.25s; text-decoration:none; display:block; }
+  .tools-tab.active { color:var(--accent-blue); border-bottom-color:var(--accent-blue); }
+  .input-row { display:flex; gap:8px; padding:0 16px; align-items:center; margin-bottom:8px; }
+  .input-row label { font-family:var(--font-display); font-size:9px; color:var(--text-muted); letter-spacing:0.08em; width:80px; flex-shrink:0; }
+  .input-row input { flex:1; font-family:var(--font-mono); font-size:15px; }
+  .input-row select { background:var(--bg-tertiary); border:1.5px solid var(--border); border-radius:var(--radius-btn); font-family:var(--font-mono); font-size:13px; color:var(--text-primary); padding:10px 8px; outline:none; transition:all 0.25s; width:90px; }
+  .input-row select:focus { border-color:var(--accent-blue); }
+  .result-display { text-align:center; padding:12px 16px 8px; }
+  .result-time { font-family:var(--font-mono); font-size:40px; font-weight:500; color:var(--accent-blue); text-shadow:var(--glow-blue-lg); line-height:1; }
+  .result-unit { font-family:var(--font-display); font-size:11px; color:var(--text-muted); letter-spacing:0.12em; margin-top:4px; }
+  .comp-row { padding:6px 16px; display:flex; align-items:center; gap:8px; }
+  .comp-label { font-family:var(--font-display); font-size:9px; color:var(--text-muted); width:60px; flex-shrink:0; letter-spacing:0.04em; }
+  .comp-bar-wrap { flex:1; height:10px; background:var(--bg-tertiary); border-radius:99px; overflow:hidden; border:1px solid var(--border); }
+  .comp-bar { height:100%; border-radius:99px; transition:width 0.8s cubic-bezier(0.4,0,0.2,1); width:0%; }
+  .comp-time { font-family:var(--font-mono); font-size:11px; color:var(--text-secondary); min-width:70px; text-align:right; }
+  .no-result { text-align:center; padding:24px; color:var(--text-muted); font-family:var(--font-mono); font-size:12px; }
 </style>
 </head>
 <body>
 <div class="screen">
+
   <div class="header">
-    <button class="back-btn" onclick="history.back()">&#8592;</button>
-    <h1>Bandwidth Calculator</h1>
+    <a href="index.html" class="back-btn">‹</a>
+    <h1>NETWORK TOOLS</h1>
   </div>
 
-  <div class="content">
-
-    <!-- File size -->
-    <div class="card">
-      <label class="label">File Size</label>
-      <div class="input-group">
-        <input class="input" id="fileSizeInput" type="number" min="0" value="100" placeholder="e.g. 100" oninput="calculate()">
-        <select class="input select" id="fileSizeUnit" onchange="calculate()">
-          <option value="KB">KB</option>
-          <option value="MB" selected>MB</option>
-          <option value="GB">GB</option>
-          <option value="TB">TB</option>
-        </select>
-      </div>
-    </div>
-
-    <!-- Bandwidth -->
-    <div class="card">
-      <label class="label">Connection Speed</label>
-      <div class="input-group">
-        <input class="input" id="bwInput" type="number" min="0" value="100" placeholder="e.g. 100" oninput="calculate()">
-        <select class="input select" id="bwUnit" onchange="calculate()">
-          <option value="Kbps">Kbps</option>
-          <option value="Mbps" selected>Mbps</option>
-          <option value="Gbps">Gbps</option>
-        </select>
-      </div>
-    </div>
-
-    <!-- Quick presets -->
-    <div class="card-title" style="padding:0 0 4px">Quick Presets</div>
-    <div class="chip-row">
-      <span class="chip" onclick="setPreset(56,'Kbps')">Dial-up 56K</span>
-      <span class="chip" onclick="setPreset(25,'Mbps')">4G LTE</span>
-      <span class="chip" onclick="setPreset(100,'Mbps')">100 Mbps</span>
-      <span class="chip" onclick="setPreset(1,'Gbps')">Fiber 1G</span>
-    </div>
-
-    <!-- Result -->
-    <div class="card" id="resultCard">
-      <div class="result-hero">
-        <div class="time-val" id="timeVal">—</div>
-        <div class="time-unit" id="timeUnit">Transfer time</div>
-      </div>
-      <div class="divider"></div>
-      <table class="result-table mt-8">
-        <tr><td>File size (bytes)</td><td id="resSizeBytes">—</td></tr>
-        <tr><td>Bandwidth (bps)</td><td id="resBwBps">—</td></tr>
-        <tr><td>Data transferred</td><td id="resBits">—</td></tr>
-      </table>
-    </div>
-
-    <!-- Comparison -->
-    <div class="card">
-      <div class="card-title">Speed Comparison</div>
-      <div id="comparisonList"></div>
-    </div>
-
+  <div class="tools-tabs">
+    <a href="tools_subnet.html" class="tools-tab" style="text-decoration:none">SUBNET</a>
+    <a href="tools_ipclass.html" class="tools-tab" style="text-decoration:none">IP CLASS</a>
+    <div class="tools-tab active">BANDWIDTH</div>
   </div>
+
+  <div style="padding:12px 16px 6px"><span class="card-title">BANDWIDTH CALCULATOR</span></div>
+
+  <!-- Inputs -->
+  <div class="input-row">
+    <label>FILE SIZE</label>
+    <input class="input" type="number" id="file-val" placeholder="100" min="0" value="100">
+    <select id="file-unit">
+      <option value="KB">KB</option>
+      <option value="MB" selected>MB</option>
+      <option value="GB">GB</option>
+    </select>
+  </div>
+  <div class="input-row">
+    <label>BANDWIDTH</label>
+    <input class="input" type="number" id="bw-val" placeholder="100" min="0" value="100">
+    <select id="bw-unit">
+      <option value="Kbps">Kbps</option>
+      <option value="Mbps" selected>Mbps</option>
+      <option value="Gbps">Gbps</option>
+    </select>
+  </div>
+
+  <button class="btn btn-primary btn-full" style="margin:4px 16px;width:calc(100% - 32px)" onclick="calculate()">CALCULATE ▶</button>
+
+  <!-- Result -->
+  <div class="result-display" id="result-area">
+    <div class="no-result">Enter values above and tap CALCULATE</div>
+  </div>
+
+  <!-- Comparison -->
+  <div style="padding:8px 16px 4px"><span class="card-title">SPEED COMPARISON</span></div>
+
+  <div class="comp-row">
+    <span class="comp-label" style="color:var(--accent-red)">DIAL-UP</span>
+    <div class="comp-bar-wrap"><div class="comp-bar" id="bar-dialup" style="background:var(--accent-red);box-shadow:0 0 6px rgba(255,69,96,0.4)"></div></div>
+    <span class="comp-time" id="t-dialup">—</span>
+  </div>
+  <div class="comp-row">
+    <span class="comp-label" style="color:var(--accent-amber)">3G</span>
+    <div class="comp-bar-wrap"><div class="comp-bar" id="bar-3g" style="background:var(--accent-amber);box-shadow:0 0 6px rgba(255,179,71,0.4)"></div></div>
+    <span class="comp-time" id="t-3g">—</span>
+  </div>
+  <div class="comp-row">
+    <span class="comp-label" style="color:var(--accent-blue)">4G LTE</span>
+    <div class="comp-bar-wrap"><div class="comp-bar" id="bar-4g" style="background:var(--accent-blue);box-shadow:0 0 6px rgba(0,212,255,0.4)"></div></div>
+    <span class="comp-time" id="t-4g">—</span>
+  </div>
+  <div class="comp-row">
+    <span class="comp-label" style="color:var(--accent-green)">FIBER</span>
+    <div class="comp-bar-wrap"><div class="comp-bar" id="bar-fiber" style="background:var(--accent-green);box-shadow:0 0 6px rgba(57,255,20,0.4)"></div></div>
+    <span class="comp-time" id="t-fiber">—</span>
+  </div>
+
+  <nav class="bottom-nav">
+    <a class="nav-item" href="index.html"><div class="nav-icon">⬡</div><div class="nav-label">Learn</div></a>
+    <a class="nav-item active" href="tools_subnet.html"><div class="nav-icon">⚙</div><div class="nav-label">Tools</div></a>
+    <a class="nav-item" href="quiz.html"><div class="nav-icon">◈</div><div class="nav-label">Quiz</div></a>
+    <a class="nav-item" href="tutor.html"><div class="nav-icon">◎</div><div class="nav-label">Tutor</div></a>
+  </nav>
 </div>
 
 <script src="utils.js"></script>
 <script>
-const SIZE_MULT = { KB: 1024, MB: 1024**2, GB: 1024**3, TB: 1024**4 };
-const BW_MULT   = { Kbps: 1e3, Mbps: 1e6, Gbps: 1e9 };
+const SPEEDS = { dialup:56000, '3g':7200000, '4g':50000000, fiber:1000000000 };
 
-const CONNECTIONS = [
-  { name: 'Dial-up',    bps: 56e3,    icon: '📞', color: '#ef4444' },
-  { name: 'DSL 1M',     bps: 1e6,     icon: '🔌', color: '#f59e0b' },
-  { name: '4G LTE',     bps: 25e6,    icon: '📶', color: '#3b82f6' },
-  { name: '100 Mbps',   bps: 100e6,   icon: '🖥️', color: '#8b5cf6' },
-  { name: 'Fiber 1G',   bps: 1e9,     icon: '⚡', color: '#1D9E75' },
-  { name: '10G Fiber',  bps: 10e9,    icon: '🚀', color: '#065f46' },
-];
+function toBytes(v, u) { v=parseFloat(v); if(u==='KB') return v*1024; if(u==='MB') return v*1024*1024; if(u==='GB') return v*1024*1024*1024; return v; }
+function toBps(v, u) { v=parseFloat(v); if(u==='Kbps') return v*1000; if(u==='Mbps') return v*1000000; if(u==='Gbps') return v*1000000000; return v; }
 
-function setPreset(val, unit) {
-  el('bwInput').value = val;
-  el('bwUnit').value = unit;
-  calculate();
-}
-
-function formatTime(seconds) {
-  if (!isFinite(seconds) || seconds <= 0) return { val: '—', unit: '' };
-  if (seconds < 1)     return { val: (seconds * 1000).toFixed(1), unit: 'milliseconds' };
-  if (seconds < 60)    return { val: seconds.toFixed(2), unit: 'seconds' };
-  if (seconds < 3600)  return { val: (seconds / 60).toFixed(2), unit: 'minutes' };
-  if (seconds < 86400) return { val: (seconds / 3600).toFixed(2), unit: 'hours' };
-  return { val: (seconds / 86400).toFixed(2), unit: 'days' };
+function fmtTime(seconds) {
+  if (!isFinite(seconds)) return '—';
+  if (seconds < 0.001) return '<1 ms';
+  if (seconds < 1) return (seconds*1000).toFixed(0)+' ms';
+  if (seconds < 60) return seconds.toFixed(2)+' sec';
+  if (seconds < 3600) return (seconds/60).toFixed(2)+' min';
+  if (seconds < 86400) return (seconds/3600).toFixed(2)+' hr';
+  return (seconds/86400).toFixed(1)+' days';
 }
 
 function calculate() {
-  const size = parseFloat(el('fileSizeInput').value) || 0;
-  const sizeUnit = el('fileSizeUnit').value;
-  const bw   = parseFloat(el('bwInput').value) || 0;
-  const bwUnit = el('bwUnit').value;
+  const fileBytes = toBytes(document.getElementById('file-val').value, document.getElementById('file-unit').value);
+  const bwBps = toBps(document.getElementById('bw-val').value, document.getElementById('bw-unit').value);
+  if (!fileBytes || !bwBps) return;
+  const seconds = (fileBytes * 8) / bwBps;
+  const timeStr = fmtTime(seconds);
 
-  const sizeBytes = size * SIZE_MULT[sizeUnit];
-  const bwBps = bw * BW_MULT[bwUnit];
-  const bits = sizeBytes * 8;
-  const seconds = bwBps > 0 ? bits / bwBps : Infinity;
+  // Main result
+  const parts = timeStr.split(' ');
+  document.getElementById('result-area').innerHTML = `
+    <div class="result-time" id="rt-num">${parts[0]}</div>
+    <div class="result-unit">${parts[1] || ''}</div>
+  `;
 
-  const { val, unit } = formatTime(seconds);
-  el('timeVal').textContent = val;
-  el('timeUnit').textContent = unit || 'Enter values above';
-
-  el('resSizeBytes').textContent = sizeBytes > 0 ? sizeBytes.toLocaleString() + ' B' : '—';
-  el('resBwBps').textContent = bwBps > 0 ? bwBps.toLocaleString() + ' bps' : '—';
-  el('resBits').textContent = bits > 0 ? bits.toLocaleString() + ' bits' : '—';
-
-  renderComparison(sizeBytes);
+  // Comparison bars
+  const times = { dialup:(fileBytes*8)/SPEEDS.dialup, '3g':(fileBytes*8)/SPEEDS['3g'], '4g':(fileBytes*8)/SPEEDS['4g'], fiber:(fileBytes*8)/SPEEDS.fiber };
+  const maxTime = Math.max(...Object.values(times));
+  ['dialup','3g','4g','fiber'].forEach(k=>{
+    const t = times[k];
+    const pct = maxTime > 0 ? Math.max(4,(t/maxTime)*100) : 0;
+    document.getElementById('t-'+k).textContent = fmtTime(t);
+    setTimeout(()=>{ document.getElementById('bar-'+k).style.width = pct+'%'; }, 100);
+  });
 }
-
-function renderComparison(sizeBytes) {
-  const bits = sizeBytes * 8;
-  const times = CONNECTIONS.map(c => ({ ...c, secs: bits / c.bps }));
-  const maxSecs = Math.max(...times.map(t => t.secs));
-
-  el('comparisonList').innerHTML = times.map(t => {
-    const { val, unit } = formatTime(t.secs);
-    const pct = maxSecs > 0 ? Math.min(100, (t.secs / maxSecs) * 100) : 0;
-    return `
-      <div class="compare-item">
-        <span class="conn-name">${t.icon} ${t.name}</span>
-        <div class="progress-wrap">
-          <div class="progress-bar" style="width:${pct}%;background:${t.color}"></div>
-        </div>
-        <span class="conn-time">${val} ${unit}</span>
-      </div>
-    `;
-  }).join('');
-}
-
-calculate();
 </script>
 </body>
 </html>

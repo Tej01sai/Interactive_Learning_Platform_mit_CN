@@ -3,417 +3,212 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
-<title>AI Tutor</title>
+<meta name="description" content="AI Tutor Chatbot — NETLEARN">
+<title>AI Tutor — NETLEARN</title>
 <link rel="stylesheet" href="style.css">
 <style>
-  .chat-screen {
-    display: flex;
-    flex-direction: column;
-    height: 100vh;
-    max-width: 420px;
-    margin: 0 auto;
-  }
-
-  .chat-messages {
-    flex: 1;
-    overflow-y: auto;
-    padding: 12px 14px;
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-    -webkit-overflow-scrolling: touch;
-  }
-
-  .bubble-wrap {
-    display: flex;
-    flex-direction: column;
-    animation: fadeIn 0.25s ease;
-  }
-
-  .bubble-wrap.user { align-items: flex-end; }
-  .bubble-wrap.tutor { align-items: flex-start; }
-
-  .bubble {
-    max-width: 82%;
-    padding: 10px 14px;
-    border-radius: 14px;
-    font-size: 14px;
-    line-height: 1.55;
-    word-break: break-word;
-  }
-
-  .bubble.user {
-    background: var(--primary);
-    color: #fff;
-    border-bottom-right-radius: 4px;
-  }
-
-  .bubble.tutor {
-    background: var(--card);
-    color: var(--text);
-    border-bottom-left-radius: 4px;
-    box-shadow: var(--shadow);
-  }
-
-  .bubble-time {
-    font-size: 10px;
-    color: var(--text-muted);
-    margin-top: 3px;
-    padding: 0 4px;
-  }
-
-  /* Typing indicator */
-  .typing-wrap {
-    display: flex;
-    align-items: flex-start;
-    gap: 8px;
-  }
-
-  .tutor-avatar {
-    width: 28px;
-    height: 28px;
-    border-radius: 50%;
-    background: var(--primary-light);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 14px;
-    flex-shrink: 0;
-  }
-
-  .typing-bubble {
-    background: var(--card);
-    border-radius: 14px;
-    border-bottom-left-radius: 4px;
-    padding: 10px 14px;
-    box-shadow: var(--shadow);
-  }
-
-  /* Input area */
-  .chat-input-area {
-    padding: 10px 14px 16px;
-    background: var(--bg);
-    border-top: 1px solid var(--border);
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-  }
-
-  .suggestion-row {
-    display: flex;
-    gap: 6px;
-    overflow-x: auto;
-    -webkit-overflow-scrolling: touch;
-    scrollbar-width: none;
-    padding-bottom: 2px;
-  }
-
-  .suggestion-row::-webkit-scrollbar { display: none; }
-
-  .suggestion-chip {
-    white-space: nowrap;
-    flex-shrink: 0;
-    height: 30px;
-    padding: 0 12px;
-    border: 1.5px solid var(--primary);
-    border-radius: 99px;
-    font-size: 12px;
-    font-weight: 500;
-    color: var(--primary);
-    background: var(--primary-light);
-    cursor: pointer;
-    transition: background 0.15s;
-  }
-
-  .suggestion-chip:active { background: #c4b5fd; }
-
-  .input-row {
-    display: flex;
-    gap: 8px;
-    align-items: flex-end;
-  }
-
-  .chat-textarea {
-    flex: 1;
-    min-height: 44px;
-    max-height: 110px;
-    resize: none;
-    padding: 10px 14px;
-    border: 1.5px solid var(--border);
-    border-radius: 22px;
-    font-size: 14px;
-    background: var(--card);
-    outline: none;
-    font-family: system-ui, sans-serif;
-    line-height: 1.4;
-    transition: border-color 0.2s;
-    overflow-y: auto;
-  }
-
-  .chat-textarea:focus { border-color: var(--primary); }
-
-  .send-btn {
-    width: 44px;
-    height: 44px;
-    border-radius: 50%;
-    background: var(--primary);
-    border: none;
-    color: #fff;
-    font-size: 18px;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    flex-shrink: 0;
-    transition: opacity 0.2s;
-  }
-
-  .send-btn:disabled { opacity: 0.4; }
-
-  /* Empty state */
-  .empty-chat {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    gap: 10px;
-    padding: 20px;
-    text-align: center;
-    color: var(--text-muted);
-  }
-
-  .empty-chat .tutor-big {
-    font-size: 52px;
-  }
+  .tutor-header { background:rgba(17,24,39,0.95); backdrop-filter:blur(12px); border-bottom:1px solid rgba(139,92,246,0.2); padding:14px 16px; display:flex; align-items:center; gap:10px; position:sticky; top:0; z-index:100; }
+  .tutor-icon { width:32px; height:32px; border-radius:50%; background:rgba(139,92,246,0.15); border:1.5px solid rgba(139,92,246,0.4); display:flex; align-items:center; justify-content:center; font-family:var(--font-display); font-size:9px; color:var(--accent-purple); box-shadow:0 0 10px rgba(139,92,246,0.4); animation:glowPulse 2.5s infinite; }
+  .tutor-title { font-family:var(--font-display); font-size:14px; font-weight:700; color:var(--accent-purple); text-shadow:var(--glow-purple); letter-spacing:0.08em; flex:1; }
+  .clear-btn { font-family:var(--font-display); font-size:9px; color:var(--text-muted); background:transparent; border:1px solid var(--border); border-radius:6px; padding:6px 10px; cursor:pointer; letter-spacing:0.06em; transition:all 0.25s; }
+  .clear-btn:hover { border-color:var(--accent-purple); color:var(--accent-purple); }
+  .suggest-row { padding:8px 16px; overflow-x:auto; display:flex; gap:8px; scrollbar-width:none; }
+  .suggest-row::-webkit-scrollbar { display:none; }
+  .suggest-chip { display:inline-flex; align-items:center; height:30px; padding:0 12px; border-radius:var(--radius-pill); font-family:var(--font-body); font-size:12px; font-weight:500; border:1px solid rgba(139,92,246,0.3); background:rgba(139,92,246,0.06); color:var(--accent-purple); cursor:pointer; white-space:nowrap; transition:all 0.25s; flex-shrink:0; }
+  .suggest-chip:hover,.suggest-chip:active { background:rgba(139,92,246,0.15); box-shadow:0 0 10px rgba(139,92,246,0.2); }
+  .chat-area { flex:1; overflow-y:auto; padding:12px 16px; display:flex; flex-direction:column; gap:12px; padding-bottom:140px; -webkit-overflow-scrolling:touch; }
+  .msg-wrap { display:flex; gap:8px; align-items:flex-end; max-width:100%; }
+  .msg-wrap.user { flex-direction:row-reverse; }
+  .ai-avatar { width:28px; height:28px; border-radius:50%; background:rgba(139,92,246,0.15); border:1.5px solid rgba(139,92,246,0.35); display:flex; align-items:center; justify-content:center; font-family:var(--font-display); font-size:8px; color:var(--accent-purple); flex-shrink:0; box-shadow:0 0 8px rgba(139,92,246,0.3); }
+  .bubble { padding:10px 14px; font-family:var(--font-body); font-size:14px; line-height:1.6; max-width:calc(100% - 44px); word-break:break-word; }
+  .bubble.user { background:var(--accent-blue); color:#0A0E1A; border-radius:18px 18px 4px 18px; font-weight:500; }
+  .bubble.tutor { background:var(--bg-tertiary); color:var(--text-primary); border-radius:18px 18px 18px 4px; border-left:3px solid var(--accent-purple); }
+  .bubble.error { background:rgba(255,69,96,0.1); color:var(--accent-red); border-radius:18px; border:1px solid rgba(255,69,96,0.3); }
+  .ts { font-family:var(--font-mono); font-size:9px; color:var(--text-muted); padding:0 4px; }
+  .typing-wrap { display:flex; gap:8px; align-items:center; display:none; }
+  .typing-wrap.show { display:flex; }
+  .input-bar { position:fixed; bottom:60px; left:50%; transform:translateX(-50%); width:100%; max-width:420px; padding:10px 16px; background:rgba(17,24,39,0.97); backdrop-filter:blur(20px); border-top:1px solid var(--border); display:flex; gap:8px; z-index:150; }
+  .chat-input { flex:1; background:var(--bg-tertiary); border:1.5px solid var(--border); border-radius:10px; font-family:var(--font-mono); font-size:13px; color:var(--text-primary); padding:10px 14px; outline:none; resize:none; height:44px; max-height:100px; overflow-y:auto; transition:all 0.25s; }
+  .chat-input:focus { border-color:var(--accent-purple); box-shadow:0 0 12px rgba(139,92,246,0.25); }
+  .send-btn { width:44px; height:44px; border-radius:10px; background:var(--accent-purple); border:none; color:#fff; font-size:18px; cursor:pointer; display:flex; align-items:center; justify-content:center; flex-shrink:0; transition:all 0.25s; box-shadow:0 0 12px rgba(139,92,246,0.3); }
+  .send-btn:hover { box-shadow:var(--glow-purple); }
+  .send-btn:active { transform:scale(0.94); }
+  .welcome-msg { text-align:center; padding:20px; color:var(--text-muted); }
+  .welcome-msg .wi { font-size:36px; margin-bottom:10px; filter:drop-shadow(0 0 10px rgba(139,92,246,0.6)); }
+  .welcome-msg h3 { font-family:var(--font-display); font-size:13px; color:var(--accent-purple); letter-spacing:0.06em; margin-bottom:8px; }
+  .welcome-msg p { font-family:var(--font-body); font-size:13px; line-height:1.6; }
 </style>
 </head>
 <body>
-<div class="chat-screen">
+<div class="screen" style="padding-bottom:0">
 
-  <div class="header">
-    <button class="back-btn" onclick="history.back()">&#8592;</button>
-    <div>
-      <h1 style="font-size:16px">CN Tutor</h1>
-      <div style="font-size:11px;opacity:0.75">Powered by Gemini AI</div>
-    </div>
-    <button class="back-btn" onclick="clearChat()" style="margin-left:auto" title="Clear chat">🗑️</button>
+  <!-- Header -->
+  <div class="tutor-header">
+    <div class="tutor-icon">AI</div>
+    <div class="tutor-title">AI TUTOR</div>
+    <button class="clear-btn" onclick="clearChat()">↺ CLEAR</button>
   </div>
 
-  <!-- Messages -->
-  <div class="chat-messages" id="chatMessages">
-    <div class="empty-chat" id="emptyState">
-      <div class="tutor-big">🤖</div>
-      <div class="fw-700" style="font-size:16px;color:var(--text)">Hi! I'm your CN Tutor</div>
-      <div class="text-sm">Ask me anything about Computer Networks — OSI layers, routing, subnetting, security, and more.</div>
-    </div>
+  <!-- Suggested questions -->
+  <div class="suggest-row">
+    <span class="suggest-chip" onclick="sendSuggestion('What is subnetting?')">What is subnetting?</span>
+    <span class="suggest-chip" onclick="sendSuggestion('Explain TCP vs UDP')">TCP vs UDP?</span>
+    <span class="suggest-chip" onclick="sendSuggestion('What does a router do?')">Router function?</span>
+    <span class="suggest-chip" onclick="sendSuggestion('How does DNS work?')">How DNS works?</span>
+    <span class="suggest-chip" onclick="sendSuggestion('OSI vs TCP/IP model difference?')">OSI vs TCP/IP?</span>
+    <span class="suggest-chip" onclick="sendSuggestion('What is ARP protocol?')">What is ARP?</span>
   </div>
 
-  <!-- Input area -->
-  <div class="chat-input-area">
-    <!-- Suggestions -->
-    <div class="suggestion-row" id="suggestionRow">
-      <button class="suggestion-chip" onclick="sendSuggestion(this)">What is subnetting?</button>
-      <button class="suggestion-chip" onclick="sendSuggestion(this)">Explain TCP vs UDP</button>
-      <button class="suggestion-chip" onclick="sendSuggestion(this)">What does a router do?</button>
-      <button class="suggestion-chip" onclick="sendSuggestion(this)">How does DHCP work?</button>
-      <button class="suggestion-chip" onclick="sendSuggestion(this)">Explain the OSI model</button>
-      <button class="suggestion-chip" onclick="sendSuggestion(this)">What is NAT?</button>
-    </div>
-
-    <div class="input-row">
-      <textarea class="chat-textarea" id="chatInput"
-        placeholder="Ask a Computer Networks question…"
-        rows="1"
-        onkeydown="onKeyDown(event)"
-        oninput="autoResize(this)"></textarea>
-      <button class="send-btn" id="sendBtn" onclick="sendMessage()" disabled>&#9658;</button>
+  <!-- Chat area -->
+  <div class="chat-area" id="chat-area">
+    <div class="welcome-msg" id="welcome">
+      <div class="wi">◎</div>
+      <h3>AI TUTOR ONLINE</h3>
+      <p>Ask me anything about Computer Networks.<br>I'll explain concepts simply with real-world analogies.</p>
     </div>
   </div>
 
+  <!-- Input bar -->
+  <div class="input-bar">
+    <textarea class="chat-input" id="chat-input" placeholder="Ask about computer networks..." rows="1"
+      onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendMessage()}"
+      oninput="this.style.height='44px';this.style.height=Math.min(this.scrollHeight,100)+'px'"></textarea>
+    <button class="send-btn" onclick="sendMessage()" id="send-btn">→</button>
+  </div>
+
+  <nav class="bottom-nav">
+    <a class="nav-item" href="index.html"><div class="nav-icon">⬡</div><div class="nav-label">Learn</div></a>
+    <a class="nav-item" href="tools_subnet.html"><div class="nav-icon">⚙</div><div class="nav-label">Tools</div></a>
+    <a class="nav-item" href="quiz.html"><div class="nav-icon">◈</div><div class="nav-label">Quiz</div></a>
+    <a class="nav-item active" href="tutor.html"><div class="nav-icon" style="filter:drop-shadow(0 0 6px rgba(139,92,246,0.8))">◎</div><div class="nav-label" style="color:var(--accent-purple)">Tutor</div></a>
+  </nav>
 </div>
 
 <script src="config.js"></script>
 <script src="utils.js"></script>
 <script>
-// ── Constants ─────────────────────────────────────────────────
+const SYSTEM_PROMPT = `You are a friendly Computer Networks tutor for undergraduate students. Explain concepts simply, use real-world analogies, keep answers under 100 words. If asked something unrelated to Computer Networks, politely redirect. Format: plain text only, no markdown.`;
 
-const SYSTEM_PROMPT = `You are a friendly Computer Networks tutor for undergraduate students.
-Explain concepts simply, use real-world analogies, keep answers under 100 words.
-Format your response as plain text — no markdown, no bullet points, no headers.
-If a student asks something unrelated to Computer Networks, politely redirect them.`;
-
-const MAX_HISTORY = 6; // Keep last 3 exchanges (6 messages)
-
-// ── State ─────────────────────────────────────────────────────
-
-let chatHistory = [];
+let chatHistory = storage.get('chatHistory', []);
 let isLoading = false;
+let firstMessage = true;
 
-// ── Init ──────────────────────────────────────────────────────
-
-(function init() {
-  const saved = localStorage.getItem('cn_chatHistory');
-  if (saved) {
-    try {
-      chatHistory = JSON.parse(saved);
-      chatHistory.forEach(msg => appendBubble(msg.role, msg.text, false));
-    } catch (_) {}
-  }
-  updateSendBtn();
-})();
-
-// ── UI helpers ────────────────────────────────────────────────
-
-function autoResize(ta) {
-  ta.style.height = 'auto';
-  ta.style.height = Math.min(ta.scrollHeight, 110) + 'px';
-  updateSendBtn();
+function getTime() {
+  return new Date().toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'});
 }
 
-function updateSendBtn() {
-  el('sendBtn').disabled = !el('chatInput').value.trim() || isLoading;
-}
+function appendMessage(role, text, isError=false) {
+  const welcome = document.getElementById('welcome');
+  if (welcome) welcome.remove();
 
-function onKeyDown(evt) {
-  if (evt.key === 'Enter' && !evt.shiftKey) {
-    evt.preventDefault();
-    if (!isLoading && el('chatInput').value.trim()) sendMessage();
-  }
-}
-
-function sendSuggestion(btn) {
-  el('chatInput').value = btn.textContent;
-  autoResize(el('chatInput'));
-  sendMessage();
-}
-
-function appendBubble(role, text, scroll = true) {
-  const empty = el('emptyState');
-  if (empty) empty.style.display = 'none';
-
+  const area = document.getElementById('chat-area');
   const wrap = document.createElement('div');
-  wrap.className = `bubble-wrap ${role}`;
+  wrap.className = 'msg-wrap ' + (role==='user'?'user':'');
 
-  const now = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  if (role === 'tutor' || isError) {
+    const av = document.createElement('div');
+    av.className = 'ai-avatar'; av.textContent = 'AI';
+    wrap.appendChild(av);
+  }
 
-  wrap.innerHTML = `
-    <div class="bubble ${role}">${escHtml(text)}</div>
-    <div class="bubble-time">${now}</div>
-  `;
+  const inner = document.createElement('div');
+  inner.style.display='flex'; inner.style.flexDirection='column'; inner.style.gap='3px';
+  inner.style.alignItems = role==='user'?'flex-end':'flex-start';
 
-  el('chatMessages').appendChild(wrap);
-  if (scroll) scrollBottom();
+  const bubble = document.createElement('div');
+  bubble.className = 'bubble ' + (isError?'error':role);
+
+  const ts = document.createElement('div');
+  ts.className = 'ts'; ts.textContent = getTime();
+
+  inner.appendChild(bubble); inner.appendChild(ts);
+  wrap.appendChild(inner);
+  area.appendChild(wrap);
+
+  // Typewriter for tutor messages
+  if (role === 'tutor' && !isError) {
+    let i=0; const iv=setInterval(()=>{ bubble.textContent+=text[i]; i++; if(i>=text.length) clearInterval(iv); area.scrollTop=area.scrollHeight; },15);
+  } else {
+    bubble.textContent = text;
+  }
+
+  area.scrollTop = area.scrollHeight;
+  return bubble;
 }
 
 function showTyping() {
-  const div = document.createElement('div');
-  div.id = 'typingIndicator';
-  div.className = 'typing-wrap';
-  div.innerHTML = `
-    <div class="tutor-avatar">🤖</div>
-    <div class="typing-bubble">
-      <div class="typing-dots">
-        <span></span><span></span><span></span>
-      </div>
-    </div>
-  `;
-  el('chatMessages').appendChild(div);
-  scrollBottom();
+  const area = document.getElementById('chat-area');
+  const wrap = document.createElement('div');
+  wrap.className = 'typing-wrap show'; wrap.id = 'typing-indicator';
+  wrap.innerHTML = `<div class="ai-avatar">AI</div><div class="typing-dots"><span></span><span></span><span></span></div>`;
+  area.appendChild(wrap);
+  area.scrollTop = area.scrollHeight;
 }
 
 function hideTyping() {
-  el('typingIndicator')?.remove();
+  const el = document.getElementById('typing-indicator');
+  if (el) el.remove();
 }
-
-function scrollBottom() {
-  const msgs = el('chatMessages');
-  requestAnimationFrame(() => {
-    msgs.scrollTop = msgs.scrollHeight;
-  });
-}
-
-function escHtml(str) {
-  return str
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/\n/g, '<br>');
-}
-
-// ── Chat logic ────────────────────────────────────────────────
 
 async function sendMessage() {
-  const input = el('chatInput');
-  const userText = input.value.trim();
-  if (!userText || isLoading) return;
+  const input = document.getElementById('chat-input');
+  const text = input.value.trim();
+  if (!text || isLoading) return;
+  input.value = ''; input.style.height = '44px';
 
+  if (firstMessage) { firstMessage=false; sendToApp({type:'tutorUsed',value:true}); }
+
+  appendMessage('user', text);
+  chatHistory.push({ role:'user', parts:[{text}] });
   isLoading = true;
-  input.value = '';
-  input.style.height = 'auto';
-  updateSendBtn();
-
-  // Append user bubble
-  appendBubble('user', userText);
-
-  // Add to history
-  chatHistory.push({ role: 'user', text: userText });
-  if (chatHistory.length > MAX_HISTORY) chatHistory.shift();
-
+  document.getElementById('send-btn').disabled = true;
+  document.getElementById('send-btn').style.opacity = '0.5';
   showTyping();
 
   try {
-    const contents = buildContents();
-    const replyText = await callGemini(contents);
+    const contents = [
+      { role:'user', parts:[{text: SYSTEM_PROMPT}] },
+      ...chatHistory.slice(-12)
+    ];
+    const response = await callGemini(contents);
     hideTyping();
-
-    appendBubble('tutor', replyText);
-    chatHistory.push({ role: 'tutor', text: replyText });
-    if (chatHistory.length > MAX_HISTORY) chatHistory.shift();
-
-    localStorage.setItem('cn_chatHistory', JSON.stringify(chatHistory));
-    sendToApp({ type: 'tutorUsed', value: chatHistory.length });
-
-  } catch (err) {
+    appendMessage('tutor', response);
+    chatHistory.push({ role:'model', parts:[{text:response}] });
+    if (chatHistory.length > 12) chatHistory = chatHistory.slice(-12);
+    storage.set('chatHistory', chatHistory);
+  } catch(err) {
     hideTyping();
-    appendBubble('tutor', `Sorry, I couldn't connect to the AI. Please check your API key in config.js. (Error: ${err.message})`);
+    appendMessage('tutor', '⚠ Connection failed: ' + err.message + '. Check your API key and try again.', true);
+  } finally {
+    isLoading = false;
+    document.getElementById('send-btn').disabled = false;
+    document.getElementById('send-btn').style.opacity = '1';
   }
-
-  isLoading = false;
-  updateSendBtn();
 }
 
-function buildContents() {
-  // Build Gemini contents array with system prompt + history
-  const contents = [];
-
-  // System prompt as first user turn (Gemini 1.5 flash doesn't have a system role)
-  contents.push({ role: 'user', parts: [{ text: SYSTEM_PROMPT }] });
-  contents.push({ role: 'model', parts: [{ text: 'Understood! I\'m ready to help with Computer Networks questions.' }] });
-
-  // Add history (last MAX_HISTORY messages)
-  const recentHistory = chatHistory.slice(-(MAX_HISTORY));
-  recentHistory.forEach(msg => {
-    contents.push({
-      role: msg.role === 'user' ? 'user' : 'model',
-      parts: [{ text: msg.text }],
-    });
-  });
-
-  return contents;
+function sendSuggestion(text) {
+  document.getElementById('chat-input').value = text;
+  sendMessage();
 }
 
 function clearChat() {
-  chatHistory = [];
-  localStorage.removeItem('cn_chatHistory');
-  const msgs = el('chatMessages');
-  msgs.innerHTML = `
-    <div class="empty-chat" id="emptyState">
-      <div class="tutor-big">🤖</div>
-      <div class="fw-700" style="font-size:16px;color:var(--text)">Chat cleared</div>
-      <div class="text-sm">Ask me anything about Computer Networks!</div>
-    </div>
-  `;
+  chatHistory = []; storage.remove('chatHistory');
+  const area = document.getElementById('chat-area');
+  area.innerHTML = `<div class="welcome-msg" id="welcome"><div class="wi">◎</div><h3>AI TUTOR ONLINE</h3><p>Ask me anything about Computer Networks.<br>I'll explain concepts simply with real-world analogies.</p></div>`;
+  firstMessage = true;
+}
+
+// Restore history on load
+if (chatHistory.length > 0) {
+  const welcome = document.getElementById('welcome');
+  if (welcome) welcome.remove();
+  chatHistory.forEach((m,i) => {
+    if (m.role === 'user') appendMessage('user', m.parts[0].text);
+    else if (m.role === 'model') {
+      const b = appendMessage('tutor', '');
+      b.textContent = m.parts[0].text;
+    }
+  });
 }
 </script>
 </body>

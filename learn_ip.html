@@ -3,437 +3,222 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
-<title>IP Addressing & Subnetting</title>
+<meta name="description" content="IP Addressing & Subnetting interactive tool — NETLEARN">
+<title>IP Addressing — NETLEARN</title>
 <link rel="stylesheet" href="style.css">
 <style>
-  .octet-row {
-    display: grid;
-    grid-template-columns: repeat(4, 1fr);
-    gap: 8px;
-  }
-
-  .octet-block {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 6px;
-  }
-
-  .octet-val {
-    font-size: 22px;
-    font-weight: 700;
-    color: var(--primary);
-    min-width: 44px;
-    text-align: center;
-    background: var(--primary-light);
-    border-radius: 8px;
-    padding: 4px 6px;
-  }
-
-  .octet-label {
-    font-size: 10px;
-    color: var(--text-muted);
-    font-weight: 600;
-  }
-
-  /* Binary display */
-  .binary-row {
-    display: grid;
-    grid-template-columns: repeat(4, 1fr);
-    gap: 4px;
-    font-family: monospace;
-    font-size: 11px;
-  }
-
-  .binary-octet {
-    background: #f3f4f6;
-    border-radius: 6px;
-    padding: 6px 4px;
-    text-align: center;
-    letter-spacing: 1px;
-    line-height: 1.6;
-    word-break: break-all;
-  }
-
-  .bit { display: inline-block; }
-  .bit.net { color: var(--primary); font-weight: 700; }
-  .bit.host { color: var(--secondary); font-weight: 700; }
-  .bit.sep { color: var(--border); margin: 0 1px; font-weight: 400; }
-
-  /* Class badge */
-  .class-badge {
-    font-size: 28px;
-    font-weight: 800;
-    width: 56px;
-    height: 56px;
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    flex-shrink: 0;
-  }
-
-  /* Game mode scenario */
-  .scenario-box {
-    background: linear-gradient(135deg, var(--primary-light), var(--secondary-light));
-    border-radius: 10px;
-    padding: 14px;
-    font-size: 14px;
-    line-height: 1.5;
-    border-left: 3px solid var(--primary);
-  }
-
-  .scenario-title {
-    font-weight: 700;
-    font-size: 13px;
-    color: var(--primary);
-    margin-bottom: 6px;
-  }
-
-  .check-row {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    font-size: 13px;
-    padding: 4px 0;
-  }
-
-  .check-icon { font-size: 16px; width: 20px; text-align: center; }
+  .topic-nav { padding:10px 16px 0; overflow-x:auto; display:flex; gap:8px; scrollbar-width:none; }
+  .topic-nav::-webkit-scrollbar { display:none; }
+  .ip-display { text-align:center; font-family:var(--font-mono); font-size:28px; font-weight:500; color:var(--accent-blue); text-shadow:var(--glow-blue-lg); letter-spacing:0.08em; padding:14px 16px 4px; }
+  .octet-row { display:grid; grid-template-columns:repeat(4,1fr); gap:8px; padding:8px 16px; }
+  .octet-box { text-align:center; }
+  .octet-val { font-family:var(--font-mono); font-size:22px; font-weight:500; color:var(--accent-blue); text-shadow:0 0 10px rgba(0,212,255,0.4); line-height:1; margin-bottom:6px; }
+  .octet-box input[type=range] { width:100%; }
+  .octet-label { font-family:var(--font-display); font-size:8px; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.1em; margin-top:4px; }
+  .binary-row { display:flex; align-items:center; flex-wrap:wrap; padding:6px 16px; gap:2px; justify-content:center; }
+  .bit { font-family:var(--font-mono); font-size:12px; font-weight:500; width:16px; text-align:center; transition:color 0.25s; }
+  .bit.net { color:var(--accent-blue); text-shadow:0 0 6px rgba(0,212,255,0.5); }
+  .bit.host { color:var(--accent-green); }
+  .bit-dot { color:var(--text-muted); font-size:10px; margin:0 2px; }
+  .prefix-sep { width:2px; height:16px; background:var(--accent-amber); box-shadow:0 0 8px rgba(255,179,71,0.6); border-radius:1px; display:inline-block; margin:0 2px; }
+  .cidr-row { display:flex; align-items:center; gap:12px; padding:8px 16px; }
+  .cidr-label { font-family:var(--font-display); font-size:12px; color:var(--text-muted); white-space:nowrap; }
+  .cidr-badge { font-family:var(--font-mono); font-size:16px; color:var(--accent-amber); text-shadow:0 0 10px rgba(255,179,71,0.5); min-width:40px; }
+  .class-badge-wrap { text-align:center; padding:8px 16px 4px; }
+  .class-badge { display:inline-block; font-family:var(--font-display); font-size:16px; font-weight:900; letter-spacing:0.12em; padding:8px 24px; border-radius:var(--radius-pill); border:2px solid; transition:all 0.3s; }
+  .private-badge { display:inline-block; font-family:var(--font-mono); font-size:10px; padding:3px 10px; border-radius:var(--radius-pill); margin-left:8px; }
+  .subnet-card { margin:6px 16px; background:#050810; border:1px solid rgba(0,212,255,0.15); border-radius:10px; padding:12px; }
+  .subnet-row { display:flex; justify-content:space-between; align-items:center; padding:6px 0; border-bottom:1px solid rgba(0,212,255,0.05); }
+  .subnet-row:last-child { border-bottom:none; }
+  .subnet-lbl { font-family:var(--font-body); font-size:12px; color:var(--text-secondary); }
+  .subnet-val { font-family:var(--font-mono); font-size:12px; color:var(--accent-blue); }
+  .challenge-card { margin:6px 16px; background:rgba(255,179,71,0.06); border:1px solid rgba(255,179,71,0.25); border-radius:var(--radius-card); padding:14px; }
+  .challenge-card h3 { font-family:var(--font-display); font-size:11px; color:var(--accent-amber); letter-spacing:0.08em; margin-bottom:8px; }
+  .challenge-card p { font-family:var(--font-body); font-size:13px; color:var(--text-primary); line-height:1.5; margin-bottom:12px; }
+  .challenge-result-msg { font-family:var(--font-mono); font-size:12px; padding:8px; border-radius:8px; margin-top:8px; display:none; }
 </style>
 </head>
 <body>
 <div class="screen">
+
   <div class="header">
-    <button class="back-btn" onclick="history.back()">&#8592;</button>
-    <h1>IP Addressing</h1>
+    <a href="index.html" class="back-btn">‹</a>
+    <h1>IP ADDRESSING</h1>
   </div>
 
-  <div class="content">
-
-    <!-- Mode tabs -->
-    <div class="tab-bar">
-      <button class="tab-btn active" id="tabExplore" onclick="setMode('explore')">Explorer</button>
-      <button class="tab-btn" id="tabGame" onclick="setMode('game')">Challenge</button>
-    </div>
-
-    <!-- Game scenario -->
-    <div id="gameScenario" class="hidden">
-      <div class="scenario-box">
-        <div class="scenario-title">Scenario</div>
-        <div id="scenarioText"></div>
-      </div>
-    </div>
-
-    <!-- IP display -->
-    <div class="card">
-      <div class="card-title">IP Address</div>
-      <div class="octet-row" id="octetRow">
-        <!-- filled by JS -->
-      </div>
-    </div>
-
-    <!-- Octet sliders -->
-    <div class="card" id="sliderCard">
-      <div class="card-title">Adjust Octets</div>
-      <div style="display:flex;flex-direction:column;gap:12px" id="sliderGroup">
-        <!-- filled by JS -->
-      </div>
-    </div>
-
-    <!-- CIDR slider -->
-    <div class="card">
-      <div class="flex justify-between align-center mb-8">
-        <span class="card-title" style="margin-bottom:0">Prefix Length</span>
-        <span class="badge badge-primary mono" id="cidrBadge">/24</span>
-      </div>
-      <input type="range" id="cidrSlider" min="8" max="30" value="24" oninput="onCidrChange(this.value)">
-      <div class="flex justify-between mt-4">
-        <span class="text-xs text-muted">/8 (Class A)</span>
-        <span class="text-xs text-muted">/30</span>
-      </div>
-    </div>
-
-    <!-- Binary view -->
-    <div class="card">
-      <div class="flex justify-between align-center mb-8">
-        <span class="card-title" style="margin-bottom:0">Binary View</span>
-        <div style="display:flex;gap:8px;font-size:11px">
-          <span style="color:var(--primary);font-weight:600">■ Network</span>
-          <span style="color:var(--secondary);font-weight:600">■ Host</span>
-        </div>
-      </div>
-      <div class="binary-row" id="binaryRow"></div>
-    </div>
-
-    <!-- Class + Private/Public -->
-    <div class="flex gap-8">
-      <div class="card flex align-center gap-8" style="flex:1">
-        <div class="class-badge" id="classBadge" style="background:var(--primary-light);color:var(--primary)">A</div>
-        <div>
-          <div class="text-xs text-muted">IP Class</div>
-          <div id="classRange" style="font-size:11px;color:var(--text-muted);margin-top:2px"></div>
-        </div>
-      </div>
-      <div class="card" style="flex:1;text-align:center">
-        <div class="text-xs text-muted mb-4">Type</div>
-        <div id="privatePublicBadge" class="badge" style="font-size:13px">Private</div>
-        <div id="defaultMask" class="text-xs text-muted mt-4 mono"></div>
-      </div>
-    </div>
-
-    <!-- Subnet details -->
-    <div class="card">
-      <div class="card-title">Subnet Details</div>
-      <table class="result-table" id="subnetTable">
-        <!-- filled by JS -->
-      </table>
-    </div>
-
-    <!-- Game checker -->
-    <div id="gameChecker" class="hidden card">
-      <div class="card-title">Validation</div>
-      <div id="gameChecks"></div>
-      <button class="btn btn-primary btn-full mt-8" onclick="nextScenario()">Next Scenario →</button>
-    </div>
-
+  <div class="topic-nav">
+    <a href="learn_osi.html" class="chip">OSI</a>
+    <span class="chip active">IP</span>
+    <a href="learn_topology.html" class="chip">Topology</a>
+    <a href="learn_routing.html" class="chip">Routing</a>
+    <a href="learn_security.html" class="chip">Security</a>
   </div>
+
+  <div style="padding:10px 16px 0"><span class="card-title">BUILD YOUR IP ADDRESS</span></div>
+
+  <!-- IP Display -->
+  <div class="ip-display" id="ip-display">192.168.1.0</div>
+
+  <!-- Octet sliders -->
+  <div class="octet-row">
+    <div class="octet-box">
+      <div class="octet-val" id="v0">192</div>
+      <input type="range" min="0" max="255" value="192" id="s0" oninput="updateOctet(0,this.value)">
+      <div class="octet-label">Octet 1</div>
+    </div>
+    <div class="octet-box">
+      <div class="octet-val" id="v1">168</div>
+      <input type="range" min="0" max="255" value="168" id="s1" oninput="updateOctet(1,this.value)">
+      <div class="octet-label">Octet 2</div>
+    </div>
+    <div class="octet-box">
+      <div class="octet-val" id="v2">1</div>
+      <input type="range" min="0" max="255" value="1" id="s2" oninput="updateOctet(2,this.value)">
+      <div class="octet-label">Octet 3</div>
+    </div>
+    <div class="octet-box">
+      <div class="octet-val" id="v3">0</div>
+      <input type="range" min="0" max="255" value="0" id="s3" oninput="updateOctet(3,this.value)">
+      <div class="octet-label">Octet 4</div>
+    </div>
+  </div>
+
+  <!-- CIDR Slider -->
+  <div class="cidr-row">
+    <div class="cidr-label">PREFIX</div>
+    <input type="range" min="8" max="30" value="24" id="cidr-slider" oninput="updateUI()" style="flex:1">
+    <div class="cidr-badge" id="cidr-display">/24</div>
+  </div>
+
+  <!-- Binary display -->
+  <div style="padding:4px 16px 0"><span class="card-title">BINARY REPRESENTATION</span></div>
+  <div class="binary-row" id="binary-row"></div>
+
+  <!-- Class badge -->
+  <div class="class-badge-wrap">
+    <span class="class-badge" id="class-badge">CLASS C</span>
+    <span class="private-badge" id="private-badge" style="background:rgba(57,255,20,0.1);border:1px solid rgba(57,255,20,0.3);color:var(--accent-green)">PRIVATE</span>
+  </div>
+
+  <!-- Subnet details -->
+  <div style="padding:6px 16px 0"><span class="card-title">SUBNET DETAILS</span></div>
+  <div class="subnet-card">
+    <div class="subnet-row"><span class="subnet-lbl">Network Address</span><span class="subnet-val" id="r-net">192.168.1.0</span></div>
+    <div class="subnet-row"><span class="subnet-lbl">Broadcast</span><span class="subnet-val" id="r-bcast">192.168.1.255</span></div>
+    <div class="subnet-row"><span class="subnet-lbl">First Host</span><span class="subnet-val" id="r-first">192.168.1.1</span></div>
+    <div class="subnet-row"><span class="subnet-lbl">Last Host</span><span class="subnet-val" id="r-last">192.168.1.254</span></div>
+    <div class="subnet-row"><span class="subnet-lbl">Total Hosts</span><span class="subnet-val" id="r-hosts">254</span></div>
+    <div class="subnet-row"><span class="subnet-lbl">Subnet Mask</span><span class="subnet-val" id="r-mask">255.255.255.0</span></div>
+  </div>
+
+  <!-- Game mode -->
+  <div class="challenge-card">
+    <h3>⚡ ASSIGN THIS IP CHALLENGE</h3>
+    <p id="challenge-text">A small office needs a network for 50 devices. Configure a valid private IP and subnet.</p>
+    <button class="btn btn-amber btn-full" onclick="checkChallenge()">SUBMIT CONFIGURATION</button>
+    <div class="challenge-result-msg" id="challenge-msg"></div>
+  </div>
+
+  <nav class="bottom-nav">
+    <a class="nav-item active" href="index.html"><div class="nav-icon">⬡</div><div class="nav-label">Learn</div></a>
+    <a class="nav-item" href="tools_subnet.html"><div class="nav-icon">⚙</div><div class="nav-label">Tools</div></a>
+    <a class="nav-item" href="quiz.html"><div class="nav-icon">◈</div><div class="nav-label">Quiz</div></a>
+    <a class="nav-item" href="tutor.html"><div class="nav-icon">◎</div><div class="nav-label">Tutor</div></a>
+  </nav>
 </div>
 
 <script src="utils.js"></script>
 <script>
-// ── State ─────────────────────────────────────────────────────
-
-let octets = [192, 168, 1, 1];
+let octets = [192,168,1,0];
 let prefix = 24;
-let mode = 'explore';
-let currentScenario = null;
 
-// ── Scenarios ─────────────────────────────────────────────────
+const CLASS_COLORS = {
+  A:       { color:'var(--accent-blue)',   bg:'rgba(0,212,255,0.1)',   border:'rgba(0,212,255,0.4)' },
+  B:       { color:'var(--accent-green)',  bg:'rgba(57,255,20,0.1)',   border:'rgba(57,255,20,0.4)' },
+  C:       { color:'var(--accent-amber)',  bg:'rgba(255,179,71,0.1)',  border:'rgba(255,179,71,0.4)' },
+  D:       { color:'var(--accent-purple)', bg:'rgba(139,92,246,0.1)', border:'rgba(139,92,246,0.4)' },
+  E:       { color:'var(--accent-red)',    bg:'rgba(255,69,96,0.1)',   border:'rgba(255,69,96,0.4)' },
+  Loopback:{ color:'var(--text-secondary)',bg:'rgba(120,139,168,0.1)', border:'rgba(120,139,168,0.4)' }
+};
 
-const SCENARIOS = [
-  {
-    text: 'Set up a small office with 50 devices. Use a private Class C IP and a subnet that supports at least 50 hosts.',
-    validate(octets, prefix) {
-      const cls = getClass(octets[0]);
-      const priv = isPrivate(octets);
-      const details = getSubnetDetails(octets, prefix);
-      return [
-        { label: 'Class C IP', ok: cls === 'C' },
-        { label: 'Private range (192.168.x.x)', ok: priv },
-        { label: 'Supports ≥50 hosts', ok: details.totalHosts >= 50 },
-      ];
-    }
-  },
-  {
-    text: 'Configure a loopback test address (127.x.x.x) with a /8 subnet.',
-    validate(octets, prefix) {
-      return [
-        { label: 'First octet is 127', ok: octets[0] === 127 },
-        { label: 'Prefix is /8', ok: prefix === 8 },
-      ];
-    }
-  },
-  {
-    text: 'Set a Class B private IP (172.16.x.x to 172.31.x.x) with exactly /16 prefix.',
-    validate(octets, prefix) {
-      const cls = getClass(octets[0]);
-      const priv = isPrivate(octets);
-      return [
-        { label: 'Class B', ok: cls === 'B' },
-        { label: 'Private range (172.16–31.x.x)', ok: priv },
-        { label: 'Prefix /16', ok: prefix === 16 },
-      ];
-    }
-  },
-  {
-    text: 'A point-to-point link needs only 2 hosts. Configure the tightest possible subnet.',
-    validate(octets, prefix) {
-      const details = getSubnetDetails(octets, prefix);
-      return [
-        { label: 'Exactly 2 usable hosts (/30)', ok: prefix === 30 && details.totalHosts === 2 },
-        { label: 'Private IP used', ok: isPrivate(octets) },
-      ];
-    }
-  },
-];
+function updateOctet(i, v) { octets[i] = parseInt(v); document.getElementById('v'+i).textContent = v; updateUI(); }
 
-// ── Render helpers ────────────────────────────────────────────
+function updateUI() {
+  prefix = parseInt(document.getElementById('cidr-slider').value);
+  document.getElementById('cidr-display').textContent = '/' + prefix;
+  document.getElementById('ip-display').textContent = octets.join('.');
 
-function buildSliders() {
-  const row = el('octetRow');
-  const group = el('sliderGroup');
+  // Binary display
+  const bits = octets.map(o => toBinary(o)).join('');
+  const row = document.getElementById('binary-row');
   row.innerHTML = '';
-  group.innerHTML = '';
+  for (let i = 0; i < 32; i++) {
+    if (i > 0 && i % 8 === 0 && i !== prefix) row.insertAdjacentHTML('beforeend','<span class="bit-dot">.</span>');
+    if (i === prefix) row.insertAdjacentHTML('beforeend','<span class="prefix-sep"></span>');
+    const cls = i < prefix ? 'net' : 'host';
+    row.insertAdjacentHTML('beforeend',`<span class="bit ${cls}">${bits[i]}</span>`);
+  }
 
-  octets.forEach((val, i) => {
-    // Display block
-    const block = document.createElement('div');
-    block.className = 'octet-block';
-    block.innerHTML = `
-      <div class="octet-val" id="oct_val_${i}">${val}</div>
-      <div class="octet-label">Octet ${i+1}</div>
-    `;
-    row.appendChild(block);
-
-    // Slider
-    const wrap = document.createElement('div');
-    wrap.innerHTML = `
-      <div class="flex justify-between align-center" style="margin-bottom:4px">
-        <span class="label" style="margin:0">Octet ${i+1}</span>
-        <span class="text-sm mono fw-600" id="oct_lbl_${i}">${val}</span>
-      </div>
-      <input type="range" min="0" max="255" value="${val}"
-        oninput="onOctetChange(${i}, this.value)">
-    `;
-    group.appendChild(wrap);
-  });
-}
-
-function updateDisplay() {
-  // Octet values
-  octets.forEach((v, i) => {
-    const d = el(`oct_val_${i}`);
-    const l = el(`oct_lbl_${i}`);
-    if (d) d.textContent = v;
-    if (l) l.textContent = v;
-  });
-
-  // Class
+  // Class badge
   const cls = getClass(octets[0]);
-  const classBadge = el('classBadge');
-  classBadge.textContent = cls;
-  const classColors = { A:'var(--primary)', B:'var(--secondary)', C:'#be185d', D:'#b45309', E:'#6b7280', Loopback:'#4b5563' };
-  const classBg = { A:'var(--primary-light)', B:'var(--secondary-light)', C:'#fbeaf0', D:'#faeeda', E:'#f3f4f6', Loopback:'#f3f4f6' };
-  classBadge.style.background = classBg[cls] || '#f3f4f6';
-  classBadge.style.color = classColors[cls] || '#6b7280';
+  const cc = CLASS_COLORS[cls] || CLASS_COLORS.C;
+  const badge = document.getElementById('class-badge');
+  badge.textContent = 'CLASS ' + cls;
+  badge.style.color = cc.color; badge.style.background = cc.bg; badge.style.borderColor = cc.border;
+  badge.style.boxShadow = `0 0 16px ${cc.border}`;
 
-  const classRanges = {
-    A: '1.0.0.0 – 126.255.255.255',
-    B: '128.0.0.0 – 191.255.255.255',
-    C: '192.0.0.0 – 223.255.255.255',
-    D: '224.0.0.0 – 239.255.255.255 (Multicast)',
-    E: '240.0.0.0 – 255.255.255.255 (Reserved)',
-    Loopback: '127.0.0.0 – 127.255.255.255',
-  };
-  el('classRange').textContent = classRanges[cls] || '';
-
-  // Private / Public
-  const priv = isPrivate(octets);
-  const pb = el('privatePublicBadge');
-  pb.textContent = priv ? 'Private' : 'Public';
-  pb.className = `badge ${priv ? 'badge-secondary' : 'badge-primary'}`;
-
-  const defaultMasks = { A:'/8 (255.0.0.0)', B:'/16 (255.255.0.0)', C:'/24 (255.255.255.0)', D:'—', E:'—', Loopback:'/8' };
-  el('defaultMask').textContent = `Default: ${defaultMasks[cls] || '—'}`;
-
-  // CIDR
-  el('cidrBadge').textContent = `/${prefix}`;
-
-  // Binary
-  renderBinary();
-
-  // Subnet
-  renderSubnet();
-
-  // Game checker
-  if (mode === 'game' && currentScenario) {
-    renderGameChecks();
-  }
-}
-
-function renderBinary() {
-  const row = el('binaryRow');
-  row.innerHTML = '';
-  octets.forEach((val, octIdx) => {
-    const bin = toBinary(val);
-    const startBit = octIdx * 8;
-    let html = '';
-    for (let b = 0; b < 8; b++) {
-      const bitPos = startBit + b;
-      const cls = bitPos < prefix ? 'bit net' : 'bit host';
-      html += `<span class="${cls}">${bin[b]}</span>`;
-      if (b === 3) html += `<span class="bit sep">·</span>`;
-    }
-    const block = document.createElement('div');
-    block.className = 'binary-octet';
-    block.innerHTML = html;
-    row.appendChild(block);
-  });
-}
-
-function renderSubnet() {
-  const details = getSubnetDetails(octets, prefix);
-  const rows = [
-    ['Network Address', details.network],
-    ['Subnet Mask',     details.mask],
-    ['Broadcast',       details.broadcast],
-    ['First Host',      details.firstHost],
-    ['Last Host',       details.lastHost],
-    ['Usable Hosts',    details.totalHosts.toLocaleString()],
-  ];
-  const table = el('subnetTable');
-  table.innerHTML = rows.map(([k,v]) => `<tr><td>${k}</td><td>${v}</td></tr>`).join('');
-}
-
-function renderGameChecks() {
-  const checks = currentScenario.validate(octets, prefix);
-  const allOk = checks.every(c => c.ok);
-  const container = el('gameChecks');
-
-  container.innerHTML = checks.map(c => `
-    <div class="check-row">
-      <span class="check-icon">${c.ok ? '✅' : '❌'}</span>
-      <span>${c.label}</span>
-    </div>
-  `).join('');
-
-  show('gameChecker');
-
-  if (allOk) {
-    container.innerHTML += `<div class="info-box teal mt-8">All conditions met! Great job.</div>`;
-    sendToApp({ type: 'scenarioDone', scenario: SCENARIOS.indexOf(currentScenario) });
-  }
-}
-
-// ── Event handlers ────────────────────────────────────────────
-
-function onOctetChange(i, val) {
-  octets[i] = parseInt(val);
-  updateDisplay();
-}
-
-function onCidrChange(val) {
-  prefix = parseInt(val);
-  updateDisplay();
-}
-
-function setMode(m) {
-  mode = m;
-  el('tabExplore').classList.toggle('active', m === 'explore');
-  el('tabGame').classList.toggle('active', m === 'game');
-
-  if (m === 'game') {
-    show('gameScenario');
-    currentScenario = SCENARIOS[0];
-    el('scenarioText').textContent = currentScenario.text;
-    renderGameChecks();
+  // Private badge
+  const privBadge = document.getElementById('private-badge');
+  if (isPrivate(octets)) {
+    privBadge.style.display = 'inline-block';
   } else {
-    hide('gameScenario');
-    hide('gameChecker');
+    privBadge.style.display = 'none';
+  }
+
+  // Subnet details
+  const d = getSubnetDetails(octets, prefix);
+  document.getElementById('r-net').textContent = d.network;
+  document.getElementById('r-bcast').textContent = d.broadcast;
+  document.getElementById('r-first').textContent = d.firstHost;
+  document.getElementById('r-last').textContent = d.lastHost;
+  document.getElementById('r-hosts').textContent = d.totalHosts.toLocaleString();
+  document.getElementById('r-mask').textContent = d.mask;
+
+  try { localStorage.setItem('progress_ip', Math.min(100, prefix*2).toString()); } catch(e){}
+}
+
+const CHALLENGES = [
+  { text:'A small office needs a network for 50 devices. Configure a valid private IP and subnet.', minHosts:50, maxHosts:254, mustPrivate:true },
+  { text:'A large university needs IP space for 1000 devices. Configure accordingly.', minHosts:500, maxHosts:65534, mustPrivate:true },
+  { text:'A point-to-point WAN link needs exactly 2 host addresses. What prefix?', minHosts:2, maxHosts:2, mustPrivate:false },
+];
+let currentChallenge = 0;
+
+document.getElementById('challenge-text').textContent = CHALLENGES[0].text;
+
+function checkChallenge() {
+  const ch = CHALLENGES[currentChallenge];
+  const d = getSubnetDetails(octets, prefix);
+  const msg = document.getElementById('challenge-msg');
+  msg.style.display = 'block';
+  if (ch.mustPrivate && !isPrivate(octets)) {
+    msg.style.background = 'rgba(255,69,96,0.1)'; msg.style.color = 'var(--accent-red)';
+    msg.textContent = '✗ Must use a private IP range (10.x, 172.16-31.x, or 192.168.x.x)';
+    return;
+  }
+  if (d.totalHosts >= ch.minHosts && d.totalHosts <= ch.maxHosts) {
+    msg.style.background = 'rgba(57,255,20,0.1)'; msg.style.color = 'var(--accent-green)';
+    msg.textContent = '✓ Correct! ' + d.totalHosts + ' usable hosts configured.';
+    currentChallenge = (currentChallenge + 1) % CHALLENGES.length;
+    setTimeout(() => { document.getElementById('challenge-text').textContent = CHALLENGES[currentChallenge].text; msg.style.display='none'; }, 2500);
+    try { localStorage.setItem('progress_ip', '100'); sendToApp({type:'topicDone',topic:'ip'}); } catch(e){}
+  } else {
+    msg.style.background = 'rgba(255,69,96,0.1)'; msg.style.color = 'var(--accent-red)';
+    msg.textContent = `✗ Need ${ch.minHosts}–${ch.maxHosts} hosts. Your subnet has ${d.totalHosts}.`;
   }
 }
 
-function nextScenario() {
-  const idx = SCENARIOS.indexOf(currentScenario);
-  currentScenario = SCENARIOS[(idx + 1) % SCENARIOS.length];
-  el('scenarioText').textContent = currentScenario.text;
-  renderGameChecks();
-}
-
-// ── Init ──────────────────────────────────────────────────────
-
-buildSliders();
-updateDisplay();
+updateUI();
 </script>
 </body>
 </html>
