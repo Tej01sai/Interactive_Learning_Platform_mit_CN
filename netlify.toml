@@ -1,0 +1,41 @@
+# Netlify configuration for NETLEARN CN App
+# Docs: https://docs.netlify.com/configure-builds/file-based-configuration/
+
+[build]
+  # Build command: inject GEMINI_API_KEY from Netlify environment variables
+  # into config.js (replaces the __GEMINI_API_KEY__ placeholder at build time).
+  # Set GEMINI_API_KEY in: Netlify Dashboard → Site → Environment Variables
+  command = "sed -i \"s/__GEMINI_API_KEY__/${GEMINI_API_KEY}/g\" config.js"
+
+  # Publish the root directory (all HTML/CSS/JS files are in the repo root)
+  publish = "."
+
+[build.environment]
+  # Tells Netlify this is a plain static site — no npm install needed
+  NODE_VERSION = "18"
+
+# Security headers
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Frame-Options = "SAMEORIGIN"
+    X-Content-Type-Options = "nosniff"
+    Referrer-Policy = "strict-origin-when-cross-origin"
+    Content-Security-Policy = "default-src 'self' 'unsafe-inline' 'unsafe-eval' https://fonts.googleapis.com https://fonts.gstatic.com https://generativelanguage.googleapis.com data: blob:;"
+
+# Cache static assets
+[[headers]]
+  for = "/style.css"
+  [headers.values]
+    Cache-Control = "public, max-age=86400"
+
+[[headers]]
+  for = "*.js"
+  [headers.values]
+    Cache-Control = "public, max-age=86400"
+
+# SPA-friendly redirects (fallback for direct URL access)
+[[redirects]]
+  from = "/learn"
+  to = "/index.html"
+  status = 200
