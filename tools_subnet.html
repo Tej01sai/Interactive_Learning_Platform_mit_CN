@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Subnet Calculator</title>
+<link rel="stylesheet" href="style.css">
+<style>
+  .ip-input-row {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 6px;
+    align-items: center;
+  }
+
+  .ip-input-row input {
+    text-align: center;
+    font-family: monospace;
+    font-size: 16px;
+    font-weight: 700;
+    padding: 8px 4px;
+  }
+
+  .ip-dot {
+    text-align: center;
+    font-size: 20px;
+    font-weight: 700;
+    color: var(--primary);
+  }
+
+  .result-card {
+    background: var(--card);
+    border-radius: 10px;
+    padding: 14px;
+    box-shadow: var(--shadow);
+    border-left: 4px solid var(--primary);
+    transition: border-color 0.2s;
+  }
+
+  .result-card .res-label {
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
+    color: var(--text-muted);
+    margin-bottom: 4px;
+  }
+
+  .result-card .res-val {
+    font-family: monospace;
+    font-size: 17px;
+    font-weight: 700;
+    color: var(--primary);
+    word-break: break-all;
+  }
+
+  .result-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+
+  .binary-strip {
+    display: flex;
+    gap: 3px;
+    font-family: monospace;
+    font-size: 10px;
+    flex-wrap: wrap;
+  }
+
+  .binary-strip .octet-bits {
+    background: #f3f4f6;
+    border-radius: 4px;
+    padding: 4px 5px;
+    letter-spacing: 1px;
+  }
+
+  .bit.net  { color: var(--primary); font-weight: 700; }
+  .bit.host { color: var(--secondary); font-weight: 700; }
+</style>
+</head>
+<body>
+<div class="screen">
+  <div class="header">
+    <button class="back-btn" onclick="history.back()">&#8592;</button>
+    <h1>Subnet Calculator</h1>
+  </div>
+
+  <div class="content">
+
+    <!-- IP Input -->
+    <div class="card">
+      <div class="card-title">IP Address</div>
+      <div class="ip-input-row">
+        <input class="input" id="oct0" type="number" min="0" max="255" value="192" oninput="onInput()">
+        <input class="input" id="oct1" type="number" min="0" max="255" value="168" oninput="onInput()">
+        <input class="input" id="oct2" type="number" min="0" max="255" value="10" oninput="onInput()">
+        <input class="input" id="oct3" type="number" min="0" max="255" value="1" oninput="onInput()">
+      </div>
+      <div class="text-center mono fw-700 mt-8" style="font-size:18px;color:var(--primary)" id="ipDisplay">192.168.10.1</div>
+    </div>
+
+    <!-- Prefix slider -->
+    <div class="card">
+      <div class="flex justify-between align-center mb-8">
+        <span class="card-title" style="margin-bottom:0">Prefix Length</span>
+        <span class="badge badge-primary mono" id="prefixBadge">/24</span>
+      </div>
+      <input type="range" id="prefixSlider" min="1" max="30" value="24" oninput="onInput()">
+      <div class="flex justify-between mt-4">
+        <span class="text-xs text-muted">/1</span>
+        <span class="text-xs text-muted">/30</span>
+      </div>
+    </div>
+
+    <!-- Binary view -->
+    <div class="card">
+      <div class="flex justify-between align-center mb-8">
+        <span class="card-title" style="margin-bottom:0">Binary</span>
+        <div style="display:flex;gap:8px;font-size:11px">
+          <span style="color:var(--primary);font-weight:600">■ Net</span>
+          <span style="color:var(--secondary);font-weight:600">■ Host</span>
+        </div>
+      </div>
+      <div class="binary-strip" id="binaryStrip"></div>
+    </div>
+
+    <!-- Results -->
+    <div class="result-grid">
+      <div class="result-card">
+        <div class="res-label">Network Address</div>
+        <div class="res-val" id="resNetwork">—</div>
+      </div>
+      <div class="result-card" style="border-color:var(--secondary)">
+        <div class="res-label">Broadcast</div>
+        <div class="res-val" style="color:var(--secondary)" id="resBroadcast">—</div>
+      </div>
+      <div class="result-card" style="border-color:#1d4ed8">
+        <div class="res-label">First Host</div>
+        <div class="res-val" style="color:#1d4ed8" id="resFirstHost">—</div>
+      </div>
+      <div class="result-card" style="border-color:#be185d">
+        <div class="res-label">Last Host</div>
+        <div class="res-val" style="color:#be185d" id="resLastHost">—</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <table class="result-table">
+        <tr><td>Subnet Mask</td><td id="resMask">—</td></tr>
+        <tr><td>Usable Hosts</td><td id="resHosts">—</td></tr>
+        <tr><td>IP Class</td><td id="resClass">—</td></tr>
+        <tr><td>Network Type</td><td id="resPrivate">—</td></tr>
+      </table>
+    </div>
+
+  </div>
+</div>
+
+<script src="utils.js"></script>
+<script>
+function getOctets() {
+  return [0,1,2,3].map(i => {
+    const v = parseInt(el(`oct${i}`).value) || 0;
+    return Math.min(255, Math.max(0, v));
+  });
+}
+
+function onInput() {
+  const octets = getOctets();
+  const prefix = parseInt(el('prefixSlider').value);
+
+  el('ipDisplay').textContent = octets.join('.');
+  el('prefixBadge').textContent = `/${prefix}`;
+
+  const d = getSubnetDetails(octets, prefix);
+
+  el('resNetwork').textContent   = d.network;
+  el('resBroadcast').textContent = d.broadcast;
+  el('resFirstHost').textContent = d.firstHost;
+  el('resLastHost').textContent  = d.lastHost;
+  el('resMask').textContent      = d.mask;
+  el('resHosts').textContent     = d.totalHosts.toLocaleString();
+  el('resClass').textContent     = getClass(octets[0]);
+  el('resPrivate').textContent   = isPrivate(octets) ? 'Private' : 'Public';
+
+  // Binary
+  const strip = el('binaryStrip');
+  strip.innerHTML = '';
+  octets.forEach((val, octIdx) => {
+    const bin = toBinary(val);
+    let html = '';
+    for (let b = 0; b < 8; b++) {
+      const bitPos = octIdx * 8 + b;
+      const cls = bitPos < prefix ? 'bit net' : 'bit host';
+      html += `<span class="${cls}">${bin[b]}</span>`;
+    }
+    const block = document.createElement('div');
+    block.className = 'octet-bits';
+    block.innerHTML = html;
+    strip.appendChild(block);
+    if (octIdx < 3) {
+      const dot = document.createElement('span');
+      dot.textContent = '.';
+      dot.style.alignSelf = 'center';
+      dot.style.color = '#9ca3af';
+      strip.appendChild(dot);
+    }
+  });
+}
+
+onInput();
+</script>
+</body>
+</html>

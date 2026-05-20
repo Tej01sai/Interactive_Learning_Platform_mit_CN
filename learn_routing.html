@@ -1,0 +1,531 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Routing Game</title>
+<link rel="stylesheet" href="style.css">
+<style>
+  #routeCanvas {
+    width: 100%;
+    height: 280px;
+    display: block;
+    background: #f0f4ff;
+    border-radius: 10px;
+    touch-action: none;
+  }
+
+  .routing-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+  }
+
+  .routing-table th {
+    background: var(--primary-light);
+    color: var(--primary);
+    font-weight: 600;
+    padding: 6px 10px;
+    text-align: left;
+    font-size: 11px;
+  }
+
+  .routing-table td {
+    padding: 6px 10px;
+    border-bottom: 1px solid var(--border);
+    font-family: monospace;
+    font-size: 12px;
+  }
+
+  .routing-table tr:last-child td { border-bottom: none; }
+
+  .routing-table tr.best-route td { background: var(--secondary-light); }
+
+  .legend {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+    font-size: 12px;
+  }
+
+  .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+  }
+
+  .legend-dot {
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+
+  .trail-box {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    flex-wrap: wrap;
+    font-family: monospace;
+    font-size: 13px;
+    min-height: 32px;
+    padding: 6px 10px;
+    background: #f8f9fa;
+    border-radius: 8px;
+  }
+
+  .trail-node {
+    background: var(--primary-light);
+    color: var(--primary);
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-weight: 700;
+  }
+
+  .trail-arrow {
+    color: var(--text-muted);
+    font-size: 11px;
+  }
+
+  .trail-node.current {
+    background: var(--primary);
+    color: #fff;
+    animation: bounce 0.6s ease infinite;
+  }
+</style>
+</head>
+<body>
+<div class="screen">
+  <div class="header">
+    <button class="back-btn" onclick="history.back()">&#8592;</button>
+    <h1>Routing Game</h1>
+    <div id="timerBadge" class="badge badge-warning" style="margin-left:auto">30s</div>
+  </div>
+
+  <div class="content">
+
+    <!-- Stats row -->
+    <div class="stat-row">
+      <div class="stat-box">
+        <div class="stat-val" id="hopCount">0</div>
+        <div class="stat-lbl">Hops</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-val" id="costCount">0</div>
+        <div class="stat-lbl">Total Cost</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-val" id="bestCost">?</div>
+        <div class="stat-lbl">Best Possible</div>
+      </div>
+    </div>
+
+    <!-- Legend -->
+    <div class="legend">
+      <div class="legend-item"><div class="legend-dot" style="background:#534AB7"></div>Current router</div>
+      <div class="legend-item"><div class="legend-dot" style="background:#1D9E75"></div>Destination</div>
+      <div class="legend-item"><div class="legend-dot" style="background:#f59e0b"></div>Visited</div>
+      <div class="legend-item"><div class="legend-dot" style="background:#e5e7eb;border:1.5px solid #94a3b8"></div>Unvisited</div>
+    </div>
+
+    <!-- SVG Graph -->
+    <div class="card" style="padding:10px">
+      <svg id="routeCanvas" xmlns="http://www.w3.org/2000/svg" onclick="onGraphClick(event)" ontouchstart="onGraphTouch(event)">
+        <g id="graphEdges"></g>
+        <g id="graphNodes"></g>
+        <g id="shortestPath" style="display:none"></g>
+      </svg>
+    </div>
+
+    <!-- Packet trail -->
+    <div class="card">
+      <div class="card-title">Packet Trail</div>
+      <div class="trail-box" id="trailBox">
+        <span class="text-muted text-sm">Tap a router to start</span>
+      </div>
+    </div>
+
+    <!-- Routing table for current router -->
+    <div class="card">
+      <div class="card-title">Routing Table — <span id="currentRouterLabel">—</span></div>
+      <table class="routing-table" id="routingTable">
+        <thead><tr><th>Destination</th><th>Next Hop</th><th>Cost</th></tr></thead>
+        <tbody id="routingBody"></tbody>
+      </table>
+    </div>
+
+    <!-- Controls -->
+    <div class="btn-row">
+      <button class="btn btn-ghost" onclick="revealShortest()">Show Shortest</button>
+      <button class="btn btn-outline" onclick="resetGame()">New Game</button>
+    </div>
+
+    <!-- Result -->
+    <div id="resultBox" class="hidden"></div>
+
+  </div>
+</div>
+
+<script src="utils.js"></script>
+<script>
+// ── Graph definition ──────────────────────────────────────────
+
+const GRAPHS = [
+  {
+    nodes: {
+      A: { x: 50,  y: 60  },
+      B: { x: 160, y: 30  },
+      C: { x: 270, y: 60  },
+      D: { x: 50,  y: 150 },
+      E: { x: 160, y: 150 },
+      F: { x: 270, y: 150 },
+      G: { x: 110, y: 230 },
+      H: { x: 220, y: 230 },
+    },
+    edges: {
+      A: { B:2, D:5 },
+      B: { A:2, C:4, E:3 },
+      C: { B:4, F:2 },
+      D: { A:5, E:1, G:6 },
+      E: { B:3, D:1, F:2, H:4 },
+      F: { C:2, E:2, H:1 },
+      G: { D:6, H:3 },
+      H: { E:4, F:1, G:3 },
+    },
+  }
+];
+
+// ── State ─────────────────────────────────────────────────────
+
+let graph = GRAPHS[0];
+let source = 'A';
+let destination = 'H';
+let current = null;
+let trail = [];
+let totalCost = 0;
+let gameOver = false;
+let revealed = false;
+let timerVal = 30;
+let timerInterval = null;
+let shortestResult = null;
+
+const SVG_NS = 'http://www.w3.org/2000/svg';
+
+// ── Init ──────────────────────────────────────────────────────
+
+function initGame() {
+  // Pick random source/dest pair
+  const nodeIds = Object.keys(graph.nodes);
+  source = nodeIds[Math.floor(Math.random() * nodeIds.length)];
+  do {
+    destination = nodeIds[Math.floor(Math.random() * nodeIds.length)];
+  } while (destination === source);
+
+  current = null;
+  trail = [];
+  totalCost = 0;
+  gameOver = false;
+  revealed = false;
+
+  shortestResult = dijkstra(graph.edges, source);
+  const bestPath = buildPath(shortestResult.prev, destination);
+  let bestC = 0;
+  for (let i = 0; i < bestPath.length - 1; i++) {
+    bestC += graph.edges[bestPath[i]][bestPath[i+1]];
+  }
+
+  el('bestCost').textContent = bestC;
+  el('hopCount').textContent = 0;
+  el('costCount').textContent = 0;
+  el('currentRouterLabel').textContent = '—';
+  el('routingBody').innerHTML = '';
+  el('trailBox').innerHTML = '<span class="text-muted text-sm">Tap a router to hop</span>';
+  el('resultBox').classList.add('hidden');
+  el('shortestPath').style.display = 'none';
+
+  clearInterval(timerInterval);
+  timerVal = 30;
+  el('timerBadge').textContent = '30s';
+  el('timerBadge').className = 'badge badge-warning';
+
+  timerInterval = setInterval(() => {
+    if (gameOver) { clearInterval(timerInterval); return; }
+    timerVal--;
+    el('timerBadge').textContent = timerVal + 's';
+    if (timerVal <= 10) el('timerBadge').className = 'badge badge-danger';
+    if (timerVal <= 0) {
+      clearInterval(timerInterval);
+      endGame(false, 'Time is up! The packet was dropped.');
+    }
+  }, 1000);
+
+  drawGraph();
+}
+
+// ── Drawing ───────────────────────────────────────────────────
+
+function getNodePos(id) {
+  const svg = el('routeCanvas');
+  const rect = svg.getBoundingClientRect();
+  const scaleX = rect.width  / parseFloat(svg.getAttribute('viewBox')?.split(' ')[2] || rect.width);
+  const scaleY = rect.height / parseFloat(svg.getAttribute('viewBox')?.split(' ')[3] || rect.height);
+  const n = graph.nodes[id];
+  return { x: n.x, y: n.y };
+}
+
+function drawGraph() {
+  const svgEl = el('routeCanvas');
+  // Set viewBox to fit all nodes
+  svgEl.setAttribute('viewBox', '0 0 320 270');
+
+  el('graphEdges').innerHTML = '';
+  el('graphNodes').innerHTML = '';
+
+  // Draw edges
+  Object.entries(graph.edges).forEach(([from, neighbors]) => {
+    Object.entries(neighbors).forEach(([to, cost]) => {
+      if (from < to) { // draw once
+        const fp = graph.nodes[from];
+        const tp = graph.nodes[to];
+        const inTrail = isEdgeInTrail(from, to);
+
+        const line = makeSVG('line', {
+          x1: fp.x, y1: fp.y, x2: tp.x, y2: tp.y,
+          stroke: inTrail ? '#534AB7' : '#d1d5db',
+          'stroke-width': inTrail ? 3 : 1.5,
+          'stroke-linecap': 'round',
+        });
+        el('graphEdges').appendChild(line);
+
+        // Cost label
+        const mx = (fp.x + tp.x) / 2;
+        const my = (fp.y + tp.y) / 2;
+        const lbl = makeSVG('text', {
+          x: mx, y: my - 5,
+          'text-anchor': 'middle',
+          'font-size': 9,
+          fill: '#6b7280',
+          'font-weight': '600',
+        });
+        lbl.textContent = cost;
+        el('graphEdges').appendChild(lbl);
+      }
+    });
+  });
+
+  // Draw nodes
+  Object.entries(graph.nodes).forEach(([id, pos]) => {
+    const isSource = id === source;
+    const isDest   = id === destination;
+    const isCur    = id === current;
+    const isVisited = trail.includes(id);
+
+    const fill = isCur    ? '#534AB7' :
+                 isDest   ? '#1D9E75' :
+                 isSource && !isCur ? '#c4b5fd' :
+                 isVisited ? '#f59e0b' : '#fff';
+    const stroke = isCur ? '#3730a3' : isDest ? '#0d7558' : '#94a3b8';
+    const textColor = (isCur || isDest || isVisited) ? '#fff' : '#374151';
+    const r = isCur ? 18 : 16;
+
+    const circle = makeSVG('circle', {
+      cx: pos.x, cy: pos.y, r,
+      fill, stroke, 'stroke-width': 2,
+    });
+
+    const txt = makeSVG('text', {
+      x: pos.x, y: pos.y,
+      'text-anchor': 'middle', dy: '0.35em',
+      'font-size': 11, 'font-weight': '700', fill: textColor,
+    });
+    txt.textContent = id;
+
+    // Label under node
+    const sub = makeSVG('text', {
+      x: pos.x, y: pos.y + 26,
+      'text-anchor': 'middle',
+      'font-size': 8, fill: '#6b7280',
+    });
+    sub.textContent = isDest ? '(dest)' : isSource ? '(src)' : '';
+
+    el('graphNodes').appendChild(circle);
+    el('graphNodes').appendChild(txt);
+    el('graphNodes').appendChild(sub);
+  });
+}
+
+function makeSVG(tag, attrs) {
+  const el2 = document.createElementNS(SVG_NS, tag);
+  Object.entries(attrs).forEach(([k, v]) => el2.setAttribute(k, v));
+  return el2;
+}
+
+function isEdgeInTrail(a, b) {
+  for (let i = 0; i < trail.length - 1; i++) {
+    if ((trail[i] === a && trail[i+1] === b) || (trail[i] === b && trail[i+1] === a)) return true;
+  }
+  return false;
+}
+
+// ── Click handling ────────────────────────────────────────────
+
+function getClickedNode(evt) {
+  const svg = el('routeCanvas');
+  const rect = svg.getBoundingClientRect();
+  const vb = svg.viewBox.baseVal;
+  const scaleX = vb.width  / rect.width;
+  const scaleY = vb.height / rect.height;
+  const cx = (evt.clientX - rect.left) * scaleX;
+  const cy = (evt.clientY - rect.top)  * scaleY;
+
+  return Object.entries(graph.nodes).find(([id, pos]) =>
+    Math.hypot(pos.x - cx, pos.y - cy) < 20
+  )?.[0];
+}
+
+function onGraphTouch(evt) {
+  evt.preventDefault();
+  onGraphClick({ clientX: evt.touches[0].clientX, clientY: evt.touches[0].clientY });
+}
+
+function onGraphClick(evt) {
+  if (gameOver) return;
+  const id = getClickedNode(evt);
+  if (!id) return;
+
+  if (!current) {
+    // First hop — must start from source
+    if (id !== source) {
+      flashResult('Start from router <strong>' + source + '</strong> (the source node)', 'amber');
+      return;
+    }
+    current = id;
+    trail = [id];
+    updateRoutingTable();
+    renderTrail();
+    drawGraph();
+    return;
+  }
+
+  // Must be a neighbor
+  const neighbors = graph.edges[current];
+  if (!neighbors[id]) {
+    flashResult('Router <strong>' + id + '</strong> is not directly connected to <strong>' + current + '</strong>. Packet dropped!', 'red');
+    return;
+  }
+
+  // Cannot revisit
+  if (trail.includes(id)) {
+    flashResult('Already visited router <strong>' + id + '</strong> — routing loop!', 'amber');
+    return;
+  }
+
+  const cost = neighbors[id];
+  totalCost += cost;
+  trail.push(id);
+  current = id;
+
+  el('hopCount').textContent = trail.length - 1;
+  el('costCount').textContent = totalCost;
+
+  updateRoutingTable();
+  renderTrail();
+  drawGraph();
+
+  if (id === destination) {
+    clearInterval(timerInterval);
+    const bestPath = buildPath(shortestResult.prev, destination);
+    const isOptimal = totalCost === shortestResult.dist[destination];
+    endGame(true, isOptimal
+      ? `Perfect! You found the optimal path with cost ${totalCost}.`
+      : `You reached the destination with cost ${totalCost}. Optimal was ${shortestResult.dist[destination]}.`
+    );
+  }
+}
+
+// ── Routing table ─────────────────────────────────────────────
+
+function updateRoutingTable() {
+  if (!current) return;
+  el('currentRouterLabel').textContent = current;
+  const { dist, prev } = shortestResult;
+  const body = el('routingBody');
+  const neighbors = graph.edges[current];
+
+  body.innerHTML = Object.keys(graph.nodes)
+    .filter(d => d !== current)
+    .map(dest => {
+      let nextHop = dest;
+      let p = dest;
+      while (prev[p] && prev[p] !== current) p = prev[p];
+      if (prev[p] === current) nextHop = p;
+
+      const directCost = neighbors?.[dest];
+      const isBest = prev[dest] === current;
+
+      return `<tr class="${isBest ? 'best-route' : ''}">
+        <td>${dest}${dest === destination ? ' 🎯' : ''}</td>
+        <td>${nextHop}</td>
+        <td>${dist[dest] === Infinity ? '∞' : dist[dest]}</td>
+      </tr>`;
+    }).join('');
+}
+
+function renderTrail() {
+  const box = el('trailBox');
+  box.innerHTML = trail.map((id, i) => {
+    const isCurrent = i === trail.length - 1;
+    return `<span class="trail-node ${isCurrent ? 'current' : ''}">${id}</span>${i < trail.length - 1 ? '<span class="trail-arrow">→</span>' : ''}`;
+  }).join('');
+}
+
+// ── Game flow ─────────────────────────────────────────────────
+
+function revealShortest() {
+  revealed = true;
+  const sp = el('shortestPath');
+  sp.innerHTML = '';
+  sp.style.display = 'block';
+
+  const path = buildPath(shortestResult.prev, destination);
+
+  for (let i = 0; i < path.length - 1; i++) {
+    const fp = graph.nodes[path[i]];
+    const tp = graph.nodes[path[i+1]];
+    const line = makeSVG('line', {
+      x1: fp.x, y1: fp.y, x2: tp.x, y2: tp.y,
+      stroke: '#1D9E75', 'stroke-width': 3,
+      'stroke-dasharray': '6,3', opacity: 0.8,
+    });
+    sp.appendChild(line);
+  }
+
+  el('bestCost').textContent = shortestResult.dist[destination];
+}
+
+function endGame(success, message) {
+  gameOver = true;
+  const box = el('resultBox');
+  box.classList.remove('hidden');
+  box.innerHTML = `<div class="info-box ${success ? 'teal' : 'red'}">${success ? '✅' : '❌'} ${message}</div>`;
+  sendToApp({ type: success ? 'quizScore' : 'gameOver', value: totalCost });
+}
+
+function flashResult(msg, type) {
+  const box = el('resultBox');
+  box.classList.remove('hidden');
+  box.innerHTML = `<div class="info-box ${type}">${msg}</div>`;
+  setTimeout(() => box.classList.add('hidden'), 2500);
+}
+
+function resetGame() {
+  clearInterval(timerInterval);
+  initGame();
+}
+
+// ── Init ──────────────────────────────────────────────────────
+
+initGame();
+</script>
+</body>
+</html>

@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Bandwidth Calculator</title>
+<link rel="stylesheet" href="style.css">
+<style>
+  .input-group {
+    display: grid;
+    grid-template-columns: 1fr 100px;
+    gap: 8px;
+  }
+
+  .result-hero {
+    text-align: center;
+    padding: 20px 0 10px;
+  }
+
+  .result-hero .time-val {
+    font-size: 36px;
+    font-weight: 800;
+    color: var(--primary);
+    line-height: 1;
+  }
+
+  .result-hero .time-unit {
+    font-size: 14px;
+    color: var(--text-muted);
+    margin-top: 4px;
+  }
+
+  .compare-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 0;
+    border-bottom: 1px solid var(--border);
+    font-size: 13px;
+  }
+
+  .compare-item:last-child { border-bottom: none; }
+
+  .compare-item .conn-name {
+    width: 90px;
+    color: var(--text-muted);
+    flex-shrink: 0;
+  }
+
+  .compare-item .progress-wrap {
+    flex: 1;
+  }
+
+  .compare-item .conn-time {
+    width: 70px;
+    text-align: right;
+    font-family: monospace;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text);
+  }
+</style>
+</head>
+<body>
+<div class="screen">
+  <div class="header">
+    <button class="back-btn" onclick="history.back()">&#8592;</button>
+    <h1>Bandwidth Calculator</h1>
+  </div>
+
+  <div class="content">
+
+    <!-- File size -->
+    <div class="card">
+      <label class="label">File Size</label>
+      <div class="input-group">
+        <input class="input" id="fileSizeInput" type="number" min="0" value="100" placeholder="e.g. 100" oninput="calculate()">
+        <select class="input select" id="fileSizeUnit" onchange="calculate()">
+          <option value="KB">KB</option>
+          <option value="MB" selected>MB</option>
+          <option value="GB">GB</option>
+          <option value="TB">TB</option>
+        </select>
+      </div>
+    </div>
+
+    <!-- Bandwidth -->
+    <div class="card">
+      <label class="label">Connection Speed</label>
+      <div class="input-group">
+        <input class="input" id="bwInput" type="number" min="0" value="100" placeholder="e.g. 100" oninput="calculate()">
+        <select class="input select" id="bwUnit" onchange="calculate()">
+          <option value="Kbps">Kbps</option>
+          <option value="Mbps" selected>Mbps</option>
+          <option value="Gbps">Gbps</option>
+        </select>
+      </div>
+    </div>
+
+    <!-- Quick presets -->
+    <div class="card-title" style="padding:0 0 4px">Quick Presets</div>
+    <div class="chip-row">
+      <span class="chip" onclick="setPreset(56,'Kbps')">Dial-up 56K</span>
+      <span class="chip" onclick="setPreset(25,'Mbps')">4G LTE</span>
+      <span class="chip" onclick="setPreset(100,'Mbps')">100 Mbps</span>
+      <span class="chip" onclick="setPreset(1,'Gbps')">Fiber 1G</span>
+    </div>
+
+    <!-- Result -->
+    <div class="card" id="resultCard">
+      <div class="result-hero">
+        <div class="time-val" id="timeVal">—</div>
+        <div class="time-unit" id="timeUnit">Transfer time</div>
+      </div>
+      <div class="divider"></div>
+      <table class="result-table mt-8">
+        <tr><td>File size (bytes)</td><td id="resSizeBytes">—</td></tr>
+        <tr><td>Bandwidth (bps)</td><td id="resBwBps">—</td></tr>
+        <tr><td>Data transferred</td><td id="resBits">—</td></tr>
+      </table>
+    </div>
+
+    <!-- Comparison -->
+    <div class="card">
+      <div class="card-title">Speed Comparison</div>
+      <div id="comparisonList"></div>
+    </div>
+
+  </div>
+</div>
+
+<script src="utils.js"></script>
+<script>
+const SIZE_MULT = { KB: 1024, MB: 1024**2, GB: 1024**3, TB: 1024**4 };
+const BW_MULT   = { Kbps: 1e3, Mbps: 1e6, Gbps: 1e9 };
+
+const CONNECTIONS = [
+  { name: 'Dial-up',    bps: 56e3,    icon: '📞', color: '#ef4444' },
+  { name: 'DSL 1M',     bps: 1e6,     icon: '🔌', color: '#f59e0b' },
+  { name: '4G LTE',     bps: 25e6,    icon: '📶', color: '#3b82f6' },
+  { name: '100 Mbps',   bps: 100e6,   icon: '🖥️', color: '#8b5cf6' },
+  { name: 'Fiber 1G',   bps: 1e9,     icon: '⚡', color: '#1D9E75' },
+  { name: '10G Fiber',  bps: 10e9,    icon: '🚀', color: '#065f46' },
+];
+
+function setPreset(val, unit) {
+  el('bwInput').value = val;
+  el('bwUnit').value = unit;
+  calculate();
+}
+
+function formatTime(seconds) {
+  if (!isFinite(seconds) || seconds <= 0) return { val: '—', unit: '' };
+  if (seconds < 1)     return { val: (seconds * 1000).toFixed(1), unit: 'milliseconds' };
+  if (seconds < 60)    return { val: seconds.toFixed(2), unit: 'seconds' };
+  if (seconds < 3600)  return { val: (seconds / 60).toFixed(2), unit: 'minutes' };
+  if (seconds < 86400) return { val: (seconds / 3600).toFixed(2), unit: 'hours' };
+  return { val: (seconds / 86400).toFixed(2), unit: 'days' };
+}
+
+function calculate() {
+  const size = parseFloat(el('fileSizeInput').value) || 0;
+  const sizeUnit = el('fileSizeUnit').value;
+  const bw   = parseFloat(el('bwInput').value) || 0;
+  const bwUnit = el('bwUnit').value;
+
+  const sizeBytes = size * SIZE_MULT[sizeUnit];
+  const bwBps = bw * BW_MULT[bwUnit];
+  const bits = sizeBytes * 8;
+  const seconds = bwBps > 0 ? bits / bwBps : Infinity;
+
+  const { val, unit } = formatTime(seconds);
+  el('timeVal').textContent = val;
+  el('timeUnit').textContent = unit || 'Enter values above';
+
+  el('resSizeBytes').textContent = sizeBytes > 0 ? sizeBytes.toLocaleString() + ' B' : '—';
+  el('resBwBps').textContent = bwBps > 0 ? bwBps.toLocaleString() + ' bps' : '—';
+  el('resBits').textContent = bits > 0 ? bits.toLocaleString() + ' bits' : '—';
+
+  renderComparison(sizeBytes);
+}
+
+function renderComparison(sizeBytes) {
+  const bits = sizeBytes * 8;
+  const times = CONNECTIONS.map(c => ({ ...c, secs: bits / c.bps }));
+  const maxSecs = Math.max(...times.map(t => t.secs));
+
+  el('comparisonList').innerHTML = times.map(t => {
+    const { val, unit } = formatTime(t.secs);
+    const pct = maxSecs > 0 ? Math.min(100, (t.secs / maxSecs) * 100) : 0;
+    return `
+      <div class="compare-item">
+        <span class="conn-name">${t.icon} ${t.name}</span>
+        <div class="progress-wrap">
+          <div class="progress-bar" style="width:${pct}%;background:${t.color}"></div>
+        </div>
+        <span class="conn-time">${val} ${unit}</span>
+      </div>
+    `;
+  }).join('');
+}
+
+calculate();
+</script>
+</body>
+</html>

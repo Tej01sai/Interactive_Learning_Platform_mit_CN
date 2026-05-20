@@ -1,0 +1,587 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>OSI & TCP/IP Model</title>
+<link rel="stylesheet" href="style.css">
+<style>
+  .model-grid {
+    display: grid;
+    grid-template-columns: 1fr 48px 1fr;
+    gap: 0;
+    align-items: stretch;
+  }
+
+  .model-col { display: flex; flex-direction: column; gap: 4px; }
+
+  .col-label {
+    text-align: center;
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
+    color: var(--text-muted);
+    padding: 4px 0 8px;
+  }
+
+  .layer-box {
+    border-radius: 8px;
+    padding: 8px 10px;
+    cursor: pointer;
+    transition: transform 0.15s, box-shadow 0.15s, opacity 0.2s;
+    border: 2px solid transparent;
+    position: relative;
+    min-height: 44px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+  }
+
+  .layer-box .layer-name {
+    font-size: 12px;
+    font-weight: 700;
+  }
+
+  .layer-box .layer-pdu {
+    font-size: 10px;
+    opacity: 0.7;
+    margin-top: 1px;
+  }
+
+  .layer-box.inactive { opacity: 0.45; }
+
+  .layer-box.active {
+    border-color: var(--primary);
+    transform: scale(1.03);
+    box-shadow: 0 4px 16px rgba(83,74,183,0.22);
+    opacity: 1;
+  }
+
+  .layer-box.done { opacity: 0.9; }
+  .layer-box.done::after {
+    content: '✓';
+    position: absolute;
+    right: 8px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--secondary);
+    font-size: 13px;
+    font-weight: 700;
+  }
+
+  .layer-box.fault {
+    border-color: var(--danger) !important;
+    animation: pulse 0.8s ease infinite;
+  }
+
+  /* TCP/IP merged layers */
+  .layer-box.merged {
+    border-radius: 8px;
+    display: flex;
+  }
+
+  /* Cloud column */
+  .cloud-col {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    padding-top: 28px;
+  }
+
+  .cloud-icon {
+    font-size: 24px;
+    transition: transform 0.3s;
+  }
+
+  .packet-dot {
+    width: 12px;
+    height: 12px;
+    background: var(--primary);
+    border-radius: 50%;
+    box-shadow: 0 0 8px rgba(83,74,183,0.6);
+    transition: transform 0.25s, opacity 0.25s;
+    opacity: 0;
+  }
+
+  .packet-dot.visible { opacity: 1; }
+  .packet-dot.in-cloud { animation: bounce 0.6s ease infinite; }
+
+  /* Packet visualizer */
+  .packet-viz {
+    display: flex;
+    border-radius: 8px;
+    overflow: hidden;
+    height: 28px;
+    gap: 1px;
+  }
+
+  .pkt-seg {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 9px;
+    font-weight: 700;
+    opacity: 0.2;
+    transition: opacity 0.3s, flex 0.3s;
+    white-space: nowrap;
+    overflow: hidden;
+  }
+
+  .pkt-seg.added { opacity: 1; }
+
+  /* Challenge mode */
+  .challenge-hint {
+    font-size: 12px;
+    color: var(--text-muted);
+    text-align: center;
+    padding: 4px 0;
+  }
+
+  /* Info panel */
+  .info-panel {
+    border-radius: 10px;
+    padding: 12px 14px;
+    min-height: 64px;
+    font-size: 14px;
+    line-height: 1.55;
+    transition: background 0.3s;
+  }
+
+  .info-panel .info-layer-name {
+    font-weight: 700;
+    font-size: 13px;
+    margin-bottom: 4px;
+  }
+
+  /* Step controls */
+  .step-indicator {
+    text-align: center;
+    font-size: 12px;
+    color: var(--text-muted);
+    padding: 2px 0;
+  }
+</style>
+</head>
+<body>
+<div class="screen">
+  <div class="header">
+    <button class="back-btn" onclick="history.back()">&#8592;</button>
+    <h1>OSI &amp; TCP/IP Model</h1>
+    <div id="modeToggle" style="margin-left:auto">
+      <div class="tab-bar" style="padding:3px;gap:3px;">
+        <button class="tab-btn active" id="btnOSI" onclick="switchModel('osi')">OSI</button>
+        <button class="tab-btn" id="btnTCP" onclick="switchModel('tcp')">TCP/IP</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="content">
+
+    <!-- Mode selector -->
+    <div class="tab-bar">
+      <button class="tab-btn active" id="tabLearn" onclick="setMode('learn')">Simulation</button>
+      <button class="tab-btn" id="tabChallenge" onclick="setMode('challenge')">Challenge</button>
+    </div>
+
+    <!-- Challenge hint -->
+    <div id="challengeHint" class="challenge-hint hidden">
+      One layer is broken. Tap the faulty layer to identify it!
+    </div>
+
+    <!-- Packet visualizer -->
+    <div class="card" style="padding:10px 14px;">
+      <div class="card-title">Packet Structure</div>
+      <div class="packet-viz" id="packetViz"></div>
+    </div>
+
+    <!-- OSI / TCP/IP grid -->
+    <div class="card" style="padding:12px;">
+      <div class="model-grid" id="modelGrid">
+        <!-- filled by JS -->
+      </div>
+    </div>
+
+    <!-- Info panel -->
+    <div class="info-panel" id="infoPanel" style="background:var(--primary-light);">
+      <div class="info-layer-name" id="infoPanelTitle">Ready</div>
+      <div id="infoPanelText" class="text-muted text-sm">Press "Send Message" to begin the packet journey through the OSI layers.</div>
+    </div>
+
+    <!-- Step indicator -->
+    <div class="step-indicator" id="stepIndicator">Step 0 / 15</div>
+
+    <!-- Controls -->
+    <div class="btn-row">
+      <button class="btn btn-outline" id="btnPrev" onclick="prevStep()" disabled>&#8592; Prev</button>
+      <button class="btn btn-primary" id="btnNext" onclick="nextStep()">Send Message</button>
+      <button class="btn btn-ghost" onclick="resetSim()">Reset</button>
+    </div>
+
+    <!-- Challenge result -->
+    <div id="challengeResult" class="hidden"></div>
+
+  </div>
+</div>
+
+<script src="utils.js"></script>
+<script>
+// ── Data ─────────────────────────────────────────────────────
+
+const OSI_LAYERS = [
+  { num:7, name:'Application',  pdu:'Data',    role:'User data created',      color:'#EEEDFE', textColor:'#534AB7', header:'APP', addedAt:'sender' },
+  { num:6, name:'Presentation', pdu:'Data',    role:'Encode & encrypt',       color:'#E1F5EE', textColor:'#1D9E75', header:'PRES', addedAt:'sender' },
+  { num:5, name:'Session',      pdu:'Data',    role:'Open connection',         color:'#FBEAF0', textColor:'#be185d', header:'SES', addedAt:'sender' },
+  { num:4, name:'Transport',    pdu:'Segment', role:'Add port + sequence no.', color:'#FAECE7', textColor:'#c2410c', header:'TCP', addedAt:'sender' },
+  { num:3, name:'Network',      pdu:'Packet',  role:'Add IP addresses',        color:'#FAEEDA', textColor:'#b45309', header:'IP',  addedAt:'sender' },
+  { num:2, name:'Data Link',    pdu:'Frame',   role:'Add MAC + CRC',           color:'#E6F1FB', textColor:'#1d4ed8', header:'ETH', addedAt:'sender' },
+  { num:1, name:'Physical',     pdu:'Bits',    role:'Convert to signals',      color:'#EAF3DE', textColor:'#15803d', header:'---', addedAt:'sender' },
+];
+
+const TCP_LAYERS = [
+  { name:'Application',    pdu:'Data',    role:'HTTP, DNS, FTP — user-facing protocols',    color:'#EEEDFE', textColor:'#534AB7', osiLayers:[7,6,5] },
+  { name:'Transport',      pdu:'Segment', role:'TCP/UDP — reliable delivery, ports',         color:'#FAECE7', textColor:'#c2410c', osiLayers:[4] },
+  { name:'Internet',       pdu:'Packet',  role:'IP — logical addressing and routing',        color:'#FAEEDA', textColor:'#b45309', osiLayers:[3] },
+  { name:'Network Access', pdu:'Frame',   role:'Ethernet, Wi-Fi — physical transmission',   color:'#E6F1FB', textColor:'#1d4ed8', osiLayers:[2,1] },
+];
+
+// ── State ─────────────────────────────────────────────────────
+
+let step = 0;            // 0=idle, 1–7=sender, 8=cloud, 9–15=receiver
+let modelType = 'osi';   // 'osi' | 'tcp'
+let mode = 'learn';      // 'learn' | 'challenge'
+let faultLayer = null;
+let challengeSolved = false;
+
+// Total steps: 0 (idle) + 7 (sender) + 1 (cloud) + 7 (receiver) = 16 steps (0..15)
+const TOTAL_STEPS = 15;
+
+// ── Render ────────────────────────────────────────────────────
+
+function getLayerIndex(step) {
+  // step 1–7: sender layer 6..0 (top to bottom = L7 first)
+  // step 9–15: receiver layer 0..6 (L1 first, going up)
+  if (step >= 1 && step <= 7)  return 7 - step;  // index into OSI_LAYERS (L7=0, L1=6)
+  if (step >= 9 && step <= 15) return step - 9;   // index 0=L1, 6=L7
+  return -1;
+}
+
+function buildModelGrid() {
+  const grid = el('modelGrid');
+  const layers = modelType === 'osi' ? OSI_LAYERS : TCP_LAYERS;
+
+  const senderCol = document.createElement('div');
+  senderCol.className = 'model-col';
+  senderCol.innerHTML = `<div class="col-label">Sender</div>`;
+
+  const cloudCol = document.createElement('div');
+  cloudCol.className = 'cloud-col';
+  cloudCol.innerHTML = `
+    <div class="col-label" style="font-size:9px">Network</div>
+    <div class="cloud-icon" id="cloudIcon">☁️</div>
+    <div class="packet-dot" id="packetDot"></div>
+  `;
+
+  const receiverCol = document.createElement('div');
+  receiverCol.className = 'model-col';
+  receiverCol.innerHTML = `<div class="col-label">Receiver</div>`;
+
+  layers.forEach((layer, i) => {
+    const sBox = makeLayerBox(layer, i, 'sender');
+    const rBox = makeLayerBox(layer, i, 'receiver');
+    senderCol.appendChild(sBox);
+    receiverCol.appendChild(rBox);
+  });
+
+  grid.innerHTML = '';
+  grid.appendChild(senderCol);
+  grid.appendChild(cloudCol);
+  grid.appendChild(receiverCol);
+}
+
+function makeLayerBox(layer, index, side) {
+  const box = document.createElement('div');
+  box.className = 'layer-box inactive';
+  box.id = `${side}_layer_${index}`;
+  box.style.background = layer.color;
+  box.style.color = layer.textColor;
+
+  const num = modelType === 'osi' ? `L${layer.num}` : `L${4 - index}`;
+  box.innerHTML = `
+    <div class="layer-name">${num} ${layer.name}</div>
+    <div class="layer-pdu">${layer.pdu}</div>
+  `;
+
+  if (mode === 'challenge' && !challengeSolved) {
+    box.onclick = () => checkFault(index, side);
+  }
+  return box;
+}
+
+function buildPacketViz() {
+  const viz = el('packetViz');
+  viz.innerHTML = '';
+  const layers = modelType === 'osi' ? OSI_LAYERS : TCP_LAYERS;
+  // Show headers from outermost inward (L2 header | L3 | L4 | Data)
+  [...layers].reverse().forEach((layer, i) => {
+    const seg = document.createElement('div');
+    seg.className = 'pkt-seg';
+    seg.id = `seg_${i}`;
+    seg.style.background = layer.color;
+    seg.style.color = layer.textColor;
+    seg.textContent = modelType === 'osi' ? layer.header : layer.name.split(' ')[0];
+    viz.appendChild(seg);
+  });
+}
+
+function renderStep(s) {
+  const layers = modelType === 'osi' ? OSI_LAYERS : TCP_LAYERS;
+  const totalLayers = layers.length;
+
+  // Determine which layer is active on which side
+  let activeSideLayer = -1, activeSide = null;
+
+  if (s === 0) {
+    // idle
+  } else if (s <= totalLayers) {
+    activeSide = 'sender';
+    activeSideLayer = s - 1; // 0-indexed from top
+  } else if (s === totalLayers + 1) {
+    activeSide = 'cloud';
+  } else {
+    activeSide = 'receiver';
+    activeSideLayer = (s - totalLayers - 2); // 0-indexed from bottom
+    // For receiver the layers come back in reverse (L1 first)
+    activeSideLayer = (totalLayers - 1) - activeSideLayer;
+  }
+
+  layers.forEach((layer, i) => {
+    ['sender', 'receiver'].forEach(side => {
+      const box = el(`${side}_layer_${i}`);
+      if (!box) return;
+      box.classList.remove('active', 'done', 'inactive', 'fault');
+
+      const isSenderActive = side === 'sender' && activeSide === 'sender' && i === activeSideLayer;
+      const isReceiverActive = side === 'receiver' && activeSide === 'receiver' && i === activeSideLayer;
+
+      if (isSenderActive || isReceiverActive) {
+        box.classList.add('active');
+      } else if (side === 'sender' && activeSide === 'sender' && i < activeSideLayer) {
+        box.classList.add('done');
+      } else if (side === 'sender' && (activeSide === 'cloud' || activeSide === 'receiver')) {
+        box.classList.add('done');
+      } else if (side === 'receiver' && activeSide === 'receiver' && i > activeSideLayer) {
+        box.classList.add('done');
+      } else {
+        box.classList.add('inactive');
+      }
+
+      // Challenge fault highlight
+      if (mode === 'challenge' && !challengeSolved && faultLayer !== null && i === faultLayer) {
+        if (box.classList.contains('active') || box.classList.contains('done')) {
+          box.classList.add('fault');
+        }
+      }
+    });
+  });
+
+  // Packet dot
+  const dot = el('packetDot');
+  if (dot) {
+    dot.classList.toggle('visible', activeSide === 'cloud');
+    dot.classList.toggle('in-cloud', activeSide === 'cloud');
+  }
+
+  // Cloud icon animation
+  const cloud = el('cloudIcon');
+  if (cloud) {
+    cloud.style.transform = activeSide === 'cloud' ? 'scale(1.3)' : 'scale(1)';
+  }
+
+  // Packet visualizer
+  const segs = document.querySelectorAll('.pkt-seg');
+  segs.forEach((seg, i) => {
+    const addedAtStep = i + 1; // L6=step1, L5=step2... (outermost headers added last = highest step)
+    seg.classList.toggle('added', s >= addedAtStep && s <= (totalLayers * 2 + 1));
+  });
+
+  // Info panel
+  updateInfoPanel(s, activeSide, activeSideLayer, layers);
+
+  // Step indicator
+  const totalS = totalLayers * 2 + 1;
+  el('stepIndicator').textContent = `Step ${s} / ${totalS}`;
+
+  // Buttons
+  el('btnPrev').disabled = (s === 0);
+  el('btnNext').disabled = (s >= totalS);
+  el('btnNext').textContent = s === 0 ? 'Send Message' : (s >= totalS ? 'Done ✓' : 'Next →');
+}
+
+function updateInfoPanel(s, activeSide, activeSideLayer, layers) {
+  const panel = el('infoPanel');
+  const title = el('infoPanelTitle');
+  const text = el('infoPanelText');
+
+  if (s === 0) {
+    panel.style.background = 'var(--primary-light)';
+    title.style.color = 'var(--primary)';
+    title.textContent = 'Ready';
+    text.textContent = 'Press "Send Message" to begin the packet journey through all layers.';
+    return;
+  }
+
+  if (activeSide === 'cloud') {
+    panel.style.background = '#f0f4ff';
+    title.style.color = '#3b4dbf';
+    title.textContent = '☁️ Network Cloud — In Transit';
+    text.textContent = 'The fully encapsulated frame is transmitted as bits (electrical/optical/radio signals) across the physical network medium.';
+    return;
+  }
+
+  if (activeSideLayer < 0 || activeSideLayer >= layers.length) return;
+
+  const layer = layers[activeSideLayer];
+  panel.style.background = layer.color;
+  title.style.color = layer.textColor;
+  title.textContent = `${activeSide === 'sender' ? '⬇' : '⬆'} ${layer.name} Layer${modelType === 'osi' ? ' (L' + layer.num + ')' : ''}`;
+
+  if (activeSide === 'sender') {
+    text.textContent = `Sender: ${layer.role}. ${getSenderDetail(activeSideLayer)}`;
+  } else {
+    text.textContent = `Receiver: Strips ${modelType === 'osi' ? layer.header : layer.name.split(' ')[0]} header/trailer. ${getReceiverDetail(activeSideLayer)}`;
+  }
+}
+
+function getSenderDetail(i) {
+  const details = [
+    'The browser (or app) creates an HTTP request — this is raw user data.',
+    'Data is encoded (e.g. UTF-8), optionally compressed, and encrypted (TLS/SSL).',
+    'A session is established and synchronized between the two communicating apps.',
+    'TCP adds source/destination port numbers and a sequence number for reliability.',
+    'IP adds source and destination IP addresses for end-to-end routing.',
+    'Ethernet adds MAC addresses for the next hop, plus a CRC checksum.',
+    'The frame is converted into electrical, optical, or radio signals for transmission.',
+  ];
+  const tcpDetails = [
+    'HTTP, DNS, FTP etc. generate the user data payload.',
+    'TCP/UDP adds port numbers and handles reliability.',
+    'IP header with source/destination addresses is added.',
+    'Ethernet/Wi-Fi frame wrapping and physical transmission occur here.',
+  ];
+  return modelType === 'osi' ? (details[i] || '') : (tcpDetails[i] || '');
+}
+
+function getReceiverDetail(i) {
+  const details = [
+    'Physical signals are decoded back into binary bits.',
+    'MAC address is verified; CRC checked for errors.',
+    'IP destination is verified; packet is forwarded or accepted.',
+    'TCP reassembles segments in order; ACKs are sent back.',
+    'Session is maintained for the duration of the communication.',
+    'Data is decrypted and decoded back to its original form.',
+    'The application receives the complete data and displays it to the user.',
+  ];
+  const tcpDetails = [
+    'Ethernet frame is decoded; bits become a packet.',
+    'IP header verified; packet delivered to transport layer.',
+    'TCP reassembles and delivers data to the application.',
+    'Application processes and displays the data.',
+  ];
+  return modelType === 'osi' ? (details[i] || '') : (tcpDetails[i] || '');
+}
+
+// ── Controls ──────────────────────────────────────────────────
+
+function nextStep() {
+  const totalLayers = modelType === 'osi' ? 7 : 4;
+  const totalSteps = totalLayers * 2 + 1;
+  if (step < totalSteps) { step++; renderStep(step); }
+}
+
+function prevStep() {
+  if (step > 0) { step--; renderStep(step); }
+}
+
+function resetSim() {
+  step = 0;
+  challengeSolved = false;
+  faultLayer = null;
+  hide('challengeResult');
+  buildModelGrid();
+  buildPacketViz();
+  renderStep(0);
+  if (mode === 'challenge') pickFaultLayer();
+}
+
+function switchModel(type) {
+  modelType = type;
+  el('btnOSI').classList.toggle('active', type === 'osi');
+  el('btnTCP').classList.toggle('active', type === 'tcp');
+  resetSim();
+}
+
+function setMode(m) {
+  mode = m;
+  el('tabLearn').classList.toggle('active', m === 'learn');
+  el('tabChallenge').classList.toggle('active', m === 'challenge');
+  el('challengeHint').classList.toggle('hidden', m === 'learn');
+  resetSim();
+}
+
+// ── Challenge mode ────────────────────────────────────────────
+
+function pickFaultLayer() {
+  const totalLayers = modelType === 'osi' ? 7 : 4;
+  faultLayer = Math.floor(Math.random() * totalLayers);
+}
+
+function checkFault(layerIndex, side) {
+  if (mode !== 'challenge' || challengeSolved) return;
+
+  const result = el('challengeResult');
+  const totalLayers = modelType === 'osi' ? 7 : 4;
+  const layers = modelType === 'osi' ? OSI_LAYERS : TCP_LAYERS;
+  const tappedLayer = layers[layerIndex];
+
+  result.classList.remove('hidden');
+
+  if (layerIndex === faultLayer) {
+    challengeSolved = true;
+    result.innerHTML = `<div class="info-box teal">Correct! The <strong>${tappedLayer.name}</strong> layer was faulty. ${getFaultExplanation(faultLayer)} Try a new challenge!</div>`;
+    sendToApp({ type: 'challengeCorrect', layer: tappedLayer.name });
+  } else {
+    result.innerHTML = `<div class="info-box red">Not quite. That's the <strong>${tappedLayer.name}</strong> layer — it's working fine. Keep looking!</div>`;
+  }
+}
+
+function getFaultExplanation(i) {
+  const exp = [
+    'A Physical fault means no signal — cables disconnected or NIC failure.',
+    'Data Link fault: MAC address mismatch or CRC error drops frames.',
+    'Network fault: wrong IP routing table — packets go to wrong destination.',
+    'Transport fault: TCP port blocked — connection refused errors.',
+    'Session fault: connection drops mid-transfer.',
+    'Presentation fault: encoding mismatch — garbled characters.',
+    'Application fault: the app protocol is misconfigured (e.g. wrong HTTP version).',
+  ];
+  const tcpExp = [
+    'Network Access fault: Ethernet/Wi-Fi hardware or driver issue.',
+    'Internet fault: IP routing misconfigured — no route to host.',
+    'Transport fault: TCP/UDP port blocked or firewall rule.',
+    'Application fault: app protocol or configuration error.',
+  ];
+  return modelType === 'osi' ? (exp[i] || '') : (tcpExp[i] || '');
+}
+
+// ── Init ──────────────────────────────────────────────────────
+
+buildModelGrid();
+buildPacketViz();
+renderStep(0);
+</script>
+</body>
+</html>

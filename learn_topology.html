@@ -1,0 +1,472 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Network Topology</title>
+<link rel="stylesheet" href="style.css">
+<style>
+  #canvas {
+    width: 100%;
+    height: 300px;
+    background: #f0f4ff;
+    border-radius: 10px;
+    display: block;
+    touch-action: none;
+    cursor: crosshair;
+  }
+
+  .toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+
+  .tool-btn {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 2px;
+    min-width: 52px;
+    height: 52px;
+    border: 1.5px solid var(--border);
+    border-radius: 10px;
+    background: var(--card);
+    font-size: 18px;
+    cursor: pointer;
+    transition: background 0.15s, border-color 0.15s;
+    padding: 4px;
+  }
+
+  .tool-btn span {
+    font-size: 9px;
+    color: var(--text-muted);
+    font-weight: 600;
+    line-height: 1;
+  }
+
+  .tool-btn.active {
+    background: var(--primary-light);
+    border-color: var(--primary);
+  }
+
+  .tool-btn.active span { color: var(--primary); }
+
+  .topology-label {
+    font-size: 20px;
+    font-weight: 800;
+    color: var(--primary);
+  }
+
+  .score-row { display: flex; flex-direction: column; gap: 6px; }
+
+  .score-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+  }
+
+  .score-item .score-name { width: 100px; color: var(--text-muted); }
+  .score-item .progress-wrap { flex: 1; }
+
+  .connectivity-list {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    max-height: 100px;
+    overflow-y: auto;
+    font-size: 13px;
+  }
+
+  .conn-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 8px;
+    border-radius: 6px;
+  }
+
+  .conn-item.ok { background: #d1fae5; color: #065f46; }
+  .conn-item.fail { background: #fee2e2; color: #991b1b; }
+</style>
+</head>
+<body>
+<div class="screen">
+  <div class="header">
+    <button class="back-btn" onclick="history.back()">&#8592;</button>
+    <h1>Network Topology</h1>
+  </div>
+
+  <div class="content">
+
+    <!-- Toolbar -->
+    <div class="card" style="padding:12px">
+      <div class="toolbar" id="toolbar">
+        <button class="tool-btn active" id="tool_router" onclick="selectTool('router')">🔵<span>Router</span></button>
+        <button class="tool-btn" id="tool_pc" onclick="selectTool('pc')">💻<span>PC</span></button>
+        <button class="tool-btn" id="tool_switch" onclick="selectTool('switch')">📦<span>Switch</span></button>
+        <button class="tool-btn" id="tool_connect" onclick="selectTool('connect')">🔗<span>Connect</span></button>
+        <button class="tool-btn" id="tool_delete" onclick="selectTool('delete')">🗑️<span>Delete</span></button>
+        <button class="tool-btn" id="tool_failure" onclick="selectTool('failure')">⚡<span>Failure</span></button>
+      </div>
+    </div>
+
+    <!-- Canvas -->
+    <div class="card" style="padding:10px">
+      <svg id="canvas" xmlns="http://www.w3.org/2000/svg"
+        onclick="onCanvasClick(event)"
+        ontouchstart="onTouch(event)">
+        <defs>
+          <marker id="arrow" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+            <path d="M0,0 L0,6 L8,3 z" fill="#94a3b8"/>
+          </marker>
+        </defs>
+        <g id="edges"></g>
+        <g id="nodes"></g>
+      </svg>
+    </div>
+
+    <!-- Topology info -->
+    <div class="flex gap-8">
+      <div class="card" style="flex:1;text-align:center">
+        <div class="card-title">Topology</div>
+        <div class="topology-label" id="topoLabel">—</div>
+        <div class="text-xs text-muted mt-4" id="topoDesc">Add devices to begin</div>
+      </div>
+      <div class="card" style="flex:1">
+        <div class="card-title">Counts</div>
+        <div class="text-sm"><span id="nodeCount">0</span> devices</div>
+        <div class="text-sm"><span id="edgeCount">0</span> links</div>
+      </div>
+    </div>
+
+    <!-- Scores -->
+    <div class="card">
+      <div class="card-title">Network Scores</div>
+      <div class="score-row">
+        <div class="score-item">
+          <span class="score-name">Cost efficiency</span>
+          <div class="progress-wrap"><div class="progress-bar" id="costBar" style="width:0%"></div></div>
+          <span class="text-xs mono" id="costVal">0%</span>
+        </div>
+        <div class="score-item">
+          <span class="score-name">Fault tolerance</span>
+          <div class="progress-wrap"><div class="progress-bar teal" id="faultBar" style="width:0%"></div></div>
+          <span class="text-xs mono" id="faultVal">0%</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Connectivity panel -->
+    <div class="card" id="connectivityCard">
+      <div class="card-title">Connectivity</div>
+      <div class="connectivity-list" id="connList">
+        <div class="text-muted text-sm">No devices yet.</div>
+      </div>
+    </div>
+
+    <!-- Reset -->
+    <button class="btn btn-outline btn-full" onclick="resetCanvas()">Clear Canvas</button>
+
+  </div>
+</div>
+
+<script src="utils.js"></script>
+<script>
+// ── State ─────────────────────────────────────────────────────
+
+let nodes = [];       // {id, type, x, y, failed}
+let edges = [];       // {from, to}
+let activeTool = 'router';
+let connectFrom = null;  // node id waiting for second tap in 'connect' mode
+let failureActive = false;
+let nodeCounter = 0;
+
+const ICONS = { router: '🔵', pc: '💻', switch: '📦' };
+const LABELS = { router: 'R', pc: 'PC', switch: 'SW' };
+const SVG_NS = 'http://www.w3.org/2000/svg';
+
+// ── Tool selection ────────────────────────────────────────────
+
+function selectTool(tool) {
+  activeTool = tool;
+  connectFrom = null;
+  document.querySelectorAll('.tool-btn').forEach(b => b.classList.remove('active'));
+  el(`tool_${tool}`)?.classList.add('active');
+  document.getElementById('canvas').style.cursor =
+    tool === 'connect' ? 'crosshair' :
+    tool === 'delete'  ? 'not-allowed' :
+    tool === 'failure' ? 'pointer' : 'cell';
+}
+
+// ── Canvas events ─────────────────────────────────────────────
+
+function getCanvasPos(evt) {
+  const svg = el('canvas');
+  const rect = svg.getBoundingClientRect();
+  return {
+    x: Math.round(evt.clientX - rect.left),
+    y: Math.round(evt.clientY - rect.top),
+  };
+}
+
+function onTouch(evt) {
+  evt.preventDefault();
+  const touch = evt.touches[0];
+  onCanvasClick({ clientX: touch.clientX, clientY: touch.clientY, target: evt.target });
+}
+
+function onCanvasClick(evt) {
+  const pos = getCanvasPos(evt);
+  const hitNode = getNodeAt(pos.x, pos.y);
+
+  if (activeTool === 'connect') {
+    if (!hitNode) return;
+    if (!connectFrom) {
+      connectFrom = hitNode.id;
+      highlightNode(hitNode.id, true);
+    } else {
+      if (connectFrom !== hitNode.id && !edgeExists(connectFrom, hitNode.id)) {
+        edges.push({ from: connectFrom, to: hitNode.id });
+      }
+      highlightNode(connectFrom, false);
+      connectFrom = null;
+      redraw();
+    }
+    return;
+  }
+
+  if (activeTool === 'delete') {
+    if (hitNode) {
+      nodes = nodes.filter(n => n.id !== hitNode.id);
+      edges = edges.filter(e => e.from !== hitNode.id && e.to !== hitNode.id);
+      redraw();
+    }
+    return;
+  }
+
+  if (activeTool === 'failure') {
+    if (hitNode) {
+      hitNode.failed = !hitNode.failed;
+      redraw();
+    }
+    return;
+  }
+
+  // Place node (router / pc / switch)
+  if (['router', 'pc', 'switch'].includes(activeTool)) {
+    if (hitNode) return; // don't overlap
+    const id = `N${nodeCounter++}`;
+    nodes.push({ id, type: activeTool, x: pos.x, y: pos.y, failed: false });
+    redraw();
+  }
+}
+
+function getNodeAt(x, y) {
+  return nodes.find(n => Math.hypot(n.x - x, n.y - y) < 24);
+}
+
+function edgeExists(a, b) {
+  return edges.some(e => (e.from === a && e.to === b) || (e.from === b && e.to === a));
+}
+
+// ── Drawing ───────────────────────────────────────────────────
+
+function redraw() {
+  drawEdges();
+  drawNodes();
+  updateStats();
+}
+
+function drawEdges() {
+  const g = el('edges');
+  g.innerHTML = '';
+  edges.forEach(e => {
+    const from = nodes.find(n => n.id === e.from);
+    const to   = nodes.find(n => n.id === e.to);
+    if (!from || !to) return;
+
+    const line = document.createElementNS(SVG_NS, 'line');
+    line.setAttribute('x1', from.x);
+    line.setAttribute('y1', from.y);
+    line.setAttribute('x2', to.x);
+    line.setAttribute('y2', to.y);
+    line.setAttribute('stroke', (from.failed || to.failed) ? '#fca5a5' : '#94a3b8');
+    line.setAttribute('stroke-width', '2');
+    line.setAttribute('stroke-dasharray', (from.failed || to.failed) ? '5,4' : 'none');
+    g.appendChild(line);
+  });
+}
+
+function drawNodes() {
+  const g = el('nodes');
+  g.innerHTML = '';
+
+  nodes.forEach(n => {
+    const group = document.createElementNS(SVG_NS, 'g');
+    group.setAttribute('transform', `translate(${n.x},${n.y})`);
+    group.style.cursor = 'pointer';
+
+    const circle = document.createElementNS(SVG_NS, 'circle');
+    circle.setAttribute('r', '20');
+    circle.setAttribute('fill', n.failed ? '#fee2e2' : (
+      activeTool === 'connect' && connectFrom === n.id ? '#c4b5fd' : '#fff'
+    ));
+    circle.setAttribute('stroke', n.failed ? '#ef4444' : (
+      n.type === 'router' ? '#534AB7' :
+      n.type === 'switch' ? '#1D9E75' : '#6b7280'
+    ));
+    circle.setAttribute('stroke-width', '2');
+
+    const text = document.createElementNS(SVG_NS, 'text');
+    text.setAttribute('text-anchor', 'middle');
+    text.setAttribute('dy', '0.35em');
+    text.setAttribute('font-size', '11');
+    text.setAttribute('font-weight', '700');
+    text.setAttribute('fill', n.failed ? '#ef4444' : '#374151');
+    text.textContent = LABELS[n.type];
+
+    const label = document.createElementNS(SVG_NS, 'text');
+    label.setAttribute('text-anchor', 'middle');
+    label.setAttribute('dy', '34');
+    label.setAttribute('font-size', '9');
+    label.setAttribute('fill', '#6b7280');
+    label.textContent = n.id;
+
+    if (n.failed) {
+      const fx = document.createElementNS(SVG_NS, 'text');
+      fx.setAttribute('text-anchor', 'middle');
+      fx.setAttribute('dy', '-24');
+      fx.setAttribute('font-size', '13');
+      fx.textContent = '⚡';
+      group.appendChild(fx);
+    }
+
+    group.appendChild(circle);
+    group.appendChild(text);
+    group.appendChild(label);
+    g.appendChild(group);
+  });
+}
+
+function highlightNode(id, on) {
+  // Will be re-drawn on next redraw call
+}
+
+// ── Topology detection ────────────────────────────────────────
+
+function detectTopology(nodes, edges) {
+  const n = nodes.length;
+  const e = edges.length;
+  if (n < 2) return { name: '—', desc: 'Add at least 2 devices', cost: 0, fault: 0 };
+
+  const degree = {};
+  nodes.forEach(nd => { degree[nd.id] = 0; });
+  edges.forEach(ed => { degree[ed.from]++; degree[ed.to]++; });
+  const degrees = Object.values(degree);
+  const maxDeg = Math.max(...degrees);
+  const minDeg = Math.min(...degrees);
+
+  // Bus: all nodes degree ≤ 2, like a chain
+  const isBus = degrees.every(d => d <= 2) && e === n - 1;
+  // Ring: all nodes degree exactly 2
+  const isRing = degrees.every(d => d === 2) && e === n;
+  // Star: one hub has degree n-1, rest have degree 1
+  const isStarHub = maxDeg === n - 1 && degrees.filter(d => d === 1).length === n - 1;
+  // Mesh: every node connected to every other
+  const isMesh = e === (n * (n - 1)) / 2;
+  // Partial mesh: more connections than star but not full mesh
+  const isPartialMesh = e > n - 1 && !isMesh && !isRing && !isStarHub && !isBus;
+
+  if (isMesh)        return { name: 'Full Mesh',     desc: 'Every device connected to every other — max redundancy', cost: 20, fault: 100 };
+  if (isRing)        return { name: 'Ring',          desc: 'Devices form a closed loop — single point of failure', cost: 70, fault: 40 };
+  if (isStarHub)     return { name: 'Star',          desc: 'Central hub connects all devices — hub is single failure point', cost: 60, fault: 50 };
+  if (isBus)         return { name: 'Bus',           desc: 'All devices share a single backbone — simple but fragile', cost: 90, fault: 20 };
+  if (isPartialMesh) return { name: 'Partial Mesh',  desc: 'Some redundant paths — balanced cost and reliability', cost: 45, fault: 70 };
+  return             { name: 'Hybrid',             desc: 'Mix of topology types', cost: 50, fault: 60 };
+}
+
+function bfsConnected(nodes, edges, startId, excludeIds = []) {
+  const visited = new Set();
+  const queue = [startId];
+  visited.add(startId);
+  const adj = {};
+  nodes.forEach(n => { adj[n.id] = []; });
+  edges.forEach(e => {
+    if (!excludeIds.includes(e.from) && !excludeIds.includes(e.to)) {
+      adj[e.from]?.push(e.to);
+      adj[e.to]?.push(e.from);
+    }
+  });
+
+  while (queue.length) {
+    const cur = queue.shift();
+    (adj[cur] || []).forEach(nb => {
+      if (!visited.has(nb)) { visited.add(nb); queue.push(nb); }
+    });
+  }
+  return visited;
+}
+
+// ── Stats update ──────────────────────────────────────────────
+
+function updateStats() {
+  el('nodeCount').textContent = nodes.length;
+  el('edgeCount').textContent = edges.length;
+
+  const failedIds = nodes.filter(n => n.failed).map(n => n.id);
+  const activeNodes = nodes.filter(n => !n.failed);
+  const topo = detectTopology(nodes, edges);
+
+  el('topoLabel').textContent = topo.name;
+  el('topoDesc').textContent = topo.desc;
+
+  const costBar = el('costBar');
+  const faultBar = el('faultBar');
+  costBar.style.width = topo.cost + '%';
+  faultBar.style.width = topo.fault + '%';
+  el('costVal').textContent = topo.cost + '%';
+  el('faultVal').textContent = topo.fault + '%';
+
+  // Connectivity
+  const connList = el('connList');
+  if (nodes.length === 0) {
+    connList.innerHTML = '<div class="text-muted text-sm">No devices yet.</div>';
+    return;
+  }
+
+  const startNode = activeNodes[0];
+  if (!startNode) {
+    connList.innerHTML = '<div class="text-muted text-sm">All devices failed.</div>';
+    return;
+  }
+
+  const reachable = bfsConnected(nodes, edges, startNode.id, failedIds);
+
+  connList.innerHTML = nodes.map(n => {
+    if (n.failed) return `<div class="conn-item fail">⚡ ${n.id} (${n.type}) — Failed</div>`;
+    const ok = reachable.has(n.id);
+    return `<div class="conn-item ${ok ? 'ok' : 'fail'}">${ok ? '✓' : '✗'} ${n.id} (${n.type})</div>`;
+  }).join('');
+
+  sendToApp({ type: 'topicDone', topic: 'topology' });
+}
+
+function resetCanvas() {
+  nodes = [];
+  edges = [];
+  connectFrom = null;
+  nodeCounter = 0;
+  el('edges').innerHTML = '';
+  el('nodes').innerHTML = '';
+  updateStats();
+}
+
+// ── Init ──────────────────────────────────────────────────────
+
+updateStats();
+</script>
+</body>
+</html>

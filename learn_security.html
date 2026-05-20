@@ -1,0 +1,618 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Network Security</title>
+<link rel="stylesheet" href="style.css">
+<style>
+  /* Scenario card */
+  .scenario-card {
+    background: linear-gradient(135deg, #1a1a2e, #16213e);
+    border-radius: 12px;
+    padding: 18px;
+    color: #e2e8f0;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .scenario-card::before {
+    content: '';
+    position: absolute;
+    top: -20px; right: -20px;
+    width: 80px; height: 80px;
+    background: rgba(83,74,183,0.3);
+    border-radius: 50%;
+  }
+
+  .scenario-num {
+    font-size: 11px;
+    color: #94a3b8;
+    font-weight: 600;
+    margin-bottom: 8px;
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
+  }
+
+  .scenario-text {
+    font-size: 15px;
+    line-height: 1.6;
+  }
+
+  .choice-btn {
+    width: 100%;
+    min-height: 52px;
+    text-align: left;
+    padding: 12px 16px;
+    background: var(--card);
+    border: 1.5px solid var(--border);
+    border-radius: 10px;
+    font-size: 14px;
+    cursor: pointer;
+    transition: border-color 0.15s, background 0.15s;
+    line-height: 1.4;
+  }
+
+  .choice-btn:active { transform: scale(0.98); }
+
+  .choice-btn.correct {
+    background: #d1fae5;
+    border-color: var(--secondary);
+    color: #065f46;
+  }
+
+  .choice-btn.wrong {
+    background: #fee2e2;
+    border-color: var(--danger);
+    color: #991b1b;
+  }
+
+  .choice-btn.partial {
+    background: #fef3c7;
+    border-color: var(--warning);
+    color: #92400e;
+  }
+
+  /* Encryption demo */
+  .cipher-display {
+    font-family: monospace;
+    font-size: 16px;
+    letter-spacing: 2px;
+    padding: 12px;
+    background: #1a1a2e;
+    color: #a78bfa;
+    border-radius: 8px;
+    text-align: center;
+    word-break: break-all;
+  }
+
+  /* Firewall table */
+  .fw-rule {
+    display: grid;
+    grid-template-columns: 80px 80px 60px 80px;
+    gap: 6px;
+    align-items: center;
+    padding: 6px 0;
+    border-bottom: 1px solid var(--border);
+    font-size: 13px;
+  }
+
+  .fw-rule select, .fw-rule input {
+    min-height: 32px;
+    font-size: 12px;
+    padding: 4px 6px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    background: var(--card);
+  }
+
+  .fw-rule .fw-action {
+    font-weight: 700;
+    font-size: 12px;
+    padding: 4px 8px;
+    border-radius: 6px;
+    text-align: center;
+  }
+
+  .fw-action.allow { background: #d1fae5; color: #065f46; }
+  .fw-action.deny  { background: #fee2e2; color: #991b1b; }
+
+  /* Mini game */
+  .packet-stream {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    max-height: 200px;
+    overflow-y: auto;
+    padding: 4px;
+  }
+
+  .packet-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 12px;
+    border-radius: 8px;
+    font-size: 13px;
+    font-family: monospace;
+    cursor: pointer;
+    animation: fadeIn 0.3s ease;
+    transition: transform 0.1s;
+  }
+
+  .packet-item:active { transform: scale(0.97); }
+  .packet-item.normal  { background: #f0f4ff; }
+  .packet-item.malicious { background: #fff1f2; border: 1px dashed #fca5a5; }
+  .packet-item.blocked { opacity: 0.5; text-decoration: line-through; }
+  .packet-item.missed  { background: #fee2e2; }
+</style>
+</head>
+<body>
+<div class="screen">
+  <div class="header">
+    <button class="back-btn" onclick="history.back()">&#8592;</button>
+    <h1>Network Security</h1>
+  </div>
+
+  <div class="content">
+
+    <!-- Section tabs -->
+    <div class="tab-bar">
+      <button class="tab-btn active" id="tabScenario" onclick="showSection('scenario')">Scenarios</button>
+      <button class="tab-btn" id="tabEncrypt" onclick="showSection('encrypt')">Encryption</button>
+      <button class="tab-btn" id="tabFirewall" onclick="showSection('firewall')">Firewall</button>
+      <button class="tab-btn" id="tabGame" onclick="showSection('game')">Mini-Game</button>
+    </div>
+
+    <!-- ── SCENARIO SECTION ─────────────────────────── -->
+    <div id="sectionScenario">
+
+      <!-- Progress -->
+      <div class="flex justify-between align-center">
+        <span class="text-sm text-muted">Scenario <span id="scenarioNum">1</span> / 6</span>
+        <span class="badge badge-primary">Score: <span id="scenarioScore">0</span></span>
+      </div>
+      <div class="progress-wrap"><div class="progress-bar" id="scenarioProgress" style="width:0%"></div></div>
+
+      <!-- Scenario card -->
+      <div class="scenario-card" id="scenarioCard">
+        <div class="scenario-num" id="scenarioLabel">Scenario 1</div>
+        <div class="scenario-text" id="scenarioText"></div>
+      </div>
+
+      <!-- Choices -->
+      <div style="display:flex;flex-direction:column;gap:8px" id="choiceList"></div>
+
+      <!-- Outcome -->
+      <div id="outcomeBox" class="hidden"></div>
+
+      <!-- Next button -->
+      <button class="btn btn-primary btn-full hidden" id="btnNextScenario" onclick="nextScenario()">Next Scenario →</button>
+
+    </div>
+
+    <!-- ── ENCRYPTION SECTION ───────────────────────── -->
+    <div id="sectionEncrypt" class="hidden" style="display:flex;flex-direction:column;gap:14px">
+
+      <div class="card">
+        <div class="card-title">Caesar Cipher Demo</div>
+        <label class="label">Your message</label>
+        <input class="input" id="cipherInput" placeholder="Type something..." oninput="updateCipher()">
+        <div class="flex justify-between align-center mt-8 mb-4">
+          <label class="label" style="margin:0">Shift</label>
+          <span class="badge badge-primary mono" id="shiftBadge">+3</span>
+        </div>
+        <input type="range" min="1" max="25" value="3" oninput="onShiftChange(this.value)">
+        <div class="label mt-8">Encrypted output</div>
+        <div class="cipher-display" id="cipherOutput">—</div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">How AES Works (Simplified)</div>
+        <div style="display:flex;flex-direction:column;gap:8px">
+          <div class="info-box purple">
+            <strong>Step 1 — SubBytes:</strong> Each byte is replaced using a fixed substitution table (S-box).
+          </div>
+          <div class="info-box teal">
+            <strong>Step 2 — ShiftRows:</strong> Rows of the 4×4 block are shifted cyclically.
+          </div>
+          <div class="info-box amber">
+            <strong>Step 3 — MixColumns:</strong> Columns are mixed using matrix multiplication in GF(2⁸).
+          </div>
+          <div class="info-box purple">
+            <strong>Step 4 — AddRoundKey:</strong> XOR with a derived round key. Repeated 10–14 times.
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">Common Attacks</div>
+        <table class="result-table">
+          <tr><td>Man-in-the-Middle</td><td>Intercept &amp; relay traffic</td></tr>
+          <tr><td>Replay Attack</td><td>Re-send captured packets</td></tr>
+          <tr><td>DDoS</td><td>Flood target with requests</td></tr>
+          <tr><td>SQL Injection</td><td>Inject malicious queries</td></tr>
+          <tr><td>Phishing</td><td>Fake login pages / emails</td></tr>
+        </table>
+      </div>
+
+    </div>
+
+    <!-- ── FIREWALL SECTION ─────────────────────────── -->
+    <div id="sectionFirewall" class="hidden" style="display:flex;flex-direction:column;gap:14px">
+
+      <div class="card">
+        <div class="card-title">Firewall Rule Builder</div>
+        <div class="fw-rule" style="font-weight:700;font-size:11px;color:var(--text-muted)">
+          <span>Protocol</span><span>Source IP</span><span>Port</span><span>Action</span>
+        </div>
+        <div id="ruleList"></div>
+        <button class="btn btn-ghost btn-full mt-8" onclick="addRule()">+ Add Rule</button>
+      </div>
+
+      <div class="card">
+        <div class="card-title">Test a Packet</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px">
+          <div>
+            <label class="label">Protocol</label>
+            <select class="input select" id="testProto"><option>TCP</option><option>UDP</option><option>ICMP</option></select>
+          </div>
+          <div>
+            <label class="label">Source IP</label>
+            <input class="input" id="testIp" placeholder="10.0.0.1" value="10.0.0.1">
+          </div>
+          <div>
+            <label class="label">Port</label>
+            <input class="input" id="testPort" placeholder="80" value="80">
+          </div>
+        </div>
+        <button class="btn btn-primary btn-full mt-8" onclick="testPacket()">Test Packet</button>
+        <div id="fwResult" class="hidden mt-8"></div>
+      </div>
+
+    </div>
+
+    <!-- ── MINI GAME SECTION ────────────────────────── -->
+    <div id="sectionGame" class="hidden" style="display:flex;flex-direction:column;gap:14px">
+
+      <div class="stat-row">
+        <div class="stat-box">
+          <div class="stat-val" id="gameBlocked">0</div>
+          <div class="stat-lbl">Blocked</div>
+        </div>
+        <div class="stat-box">
+          <div class="stat-val" id="gameMissed">0</div>
+          <div class="stat-lbl">Missed</div>
+        </div>
+        <div class="stat-box">
+          <div class="stat-val" id="gameTimer">20s</div>
+          <div class="stat-lbl">Time</div>
+        </div>
+      </div>
+
+      <div class="info-box purple">Tap the malicious packets to block them before they get through!</div>
+
+      <div class="card" style="padding:10px">
+        <div class="packet-stream" id="packetStream"></div>
+      </div>
+
+      <div class="btn-row">
+        <button class="btn btn-primary" onclick="startMiniGame()">Start Game</button>
+        <button class="btn btn-outline" onclick="stopMiniGame()">Stop</button>
+      </div>
+
+      <div id="gameResult" class="hidden"></div>
+
+    </div>
+
+  </div>
+</div>
+
+<script src="utils.js"></script>
+<script>
+// ── SCENARIOS ─────────────────────────────────────────────────
+
+const SCENARIOS = [
+  {
+    text: 'You\'re the network admin. A suspicious packet arrives from IP 10.0.0.99 on port 22 (SSH) at 3 AM. What do you do?',
+    choices: [
+      { label: 'Block the IP in the firewall and log the event', outcome: 'Good call. Blocking and logging lets you investigate without leaving the port open.', correct: true },
+      { label: 'Ignore it — SSH traffic is normal', outcome: 'Risky. Unusual SSH access at 3 AM is a red flag and should always be investigated.', correct: false },
+      { label: 'Disable SSH on all servers immediately', outcome: 'Partial — this stops the threat but also disrupts legitimate admin access. Better to block the specific IP first.', partial: true },
+    ]
+  },
+  {
+    text: 'Your company\'s web server has been receiving thousands of requests per second from hundreds of different IPs. The site is slowing down.',
+    choices: [
+      { label: 'This is a DDoS attack — activate rate limiting and contact your ISP', outcome: 'Correct! Rate limiting and upstream filtering are the right first steps for a DDoS mitigation.', correct: true },
+      { label: 'Restart the web server to clear the load', outcome: 'This won\'t help. The attack traffic will immediately overwhelm the server again after restart.', correct: false },
+      { label: 'Block all international traffic at the firewall', outcome: 'Partial — this may reduce traffic but also blocks legitimate international users. Not a targeted solution.', partial: true },
+    ]
+  },
+  {
+    text: 'An employee clicks a link in an email and is taken to a page that looks exactly like the company login portal. They enter their credentials.',
+    choices: [
+      { label: 'This is a phishing attack — reset credentials, enable MFA, report the incident', outcome: 'Correct! Credential reset + MFA + reporting are the three essential steps after a phishing incident.', correct: true },
+      { label: 'Tell the employee to change their password only', outcome: 'Not enough — the attacker already has the old password and may have used it. MFA and incident reporting are critical.', correct: false },
+      { label: 'Block the phishing domain in DNS and investigate', outcome: 'Partial — blocking the domain is good, but affected credentials must still be reset immediately.', partial: true },
+    ]
+  },
+  {
+    text: 'A packet capture shows the same authentication token being sent by two different IPs within 30 seconds. What attack is this?',
+    choices: [
+      { label: 'Replay attack — invalidate the token and implement token expiry/nonces', outcome: 'Correct! Replay attacks reuse captured tokens. Time-limited tokens with nonces prevent this.', correct: true },
+      { label: 'Man-in-the-Middle attack', outcome: 'Close, but the symptom (same token, two IPs) specifically points to a replay attack after interception.', correct: false },
+      { label: 'ARP Spoofing', outcome: 'ARP spoofing redirects traffic at Layer 2 — it wouldn\'t result in duplicate tokens like this.', correct: false },
+    ]
+  },
+  {
+    text: 'Your router logs show that ARP replies are being sent for IP 192.168.1.1 (the gateway) with a different MAC address than usual.',
+    choices: [
+      { label: 'ARP Spoofing — use static ARP entries or Dynamic ARP Inspection (DAI)', outcome: 'Correct! ARP spoofing poisons the ARP cache to redirect traffic. DAI and static entries defend against it.', correct: true },
+      { label: 'DNS Poisoning — flush DNS cache', outcome: 'DNS poisoning affects domain name resolution, not ARP (MAC→IP mapping). Different attack.', correct: false },
+      { label: 'IP Spoofing — use ingress filtering at the edge', outcome: 'IP spoofing fakes source IPs but doesn\'t alter ARP tables. The symptom points to ARP spoofing.', correct: false },
+    ]
+  },
+  {
+    text: 'A developer accidentally pushed database credentials to a public GitHub repository. The credentials are now exposed.',
+    choices: [
+      { label: 'Rotate credentials immediately, audit access logs, revoke the exposed key', outcome: 'Correct! Treat it as compromised — rotate first, then audit to see if anyone used them.', correct: true },
+      { label: 'Delete the commit from GitHub', outcome: 'Deleting the commit doesn\'t help — GitHub history and search engines may have cached it already.', correct: false },
+      { label: 'Make the repository private', outcome: 'Partial — making it private helps, but the credentials are already exposed. They must be rotated immediately.', partial: true },
+    ]
+  },
+];
+
+let scenarioIdx = 0;
+let scenarioScore = 0;
+
+function loadScenario(idx) {
+  const s = SCENARIOS[idx];
+  el('scenarioNum').textContent = idx + 1;
+  el('scenarioLabel').textContent = `Scenario ${idx + 1}`;
+  el('scenarioText').textContent = s.text;
+  el('scenarioProgress').style.width = `${(idx / SCENARIOS.length) * 100}%`;
+
+  hide('outcomeBox');
+  hide('btnNextScenario');
+
+  const list = el('choiceList');
+  list.innerHTML = '';
+  s.choices.forEach((c, i) => {
+    const btn = document.createElement('button');
+    btn.className = 'choice-btn';
+    btn.textContent = `${String.fromCharCode(65+i)}. ${c.label}`;
+    btn.onclick = () => selectChoice(c, btn);
+    list.appendChild(btn);
+  });
+}
+
+function selectChoice(choice, btn) {
+  // Disable all buttons
+  document.querySelectorAll('.choice-btn').forEach(b => b.onclick = null);
+
+  const type = choice.correct ? 'correct' : choice.partial ? 'partial' : 'wrong';
+  btn.classList.add(type);
+
+  if (choice.correct) scenarioScore++;
+  el('scenarioScore').textContent = scenarioScore;
+
+  const outcomeBox = el('outcomeBox');
+  outcomeBox.classList.remove('hidden');
+  const colorMap = { correct: 'teal', partial: 'amber', wrong: 'red' };
+  const icon = { correct: '✅', partial: '⚠️', wrong: '❌' };
+  outcomeBox.innerHTML = `<div class="info-box ${colorMap[type]}">${icon[type]} ${choice.outcome}</div>`;
+
+  show('btnNextScenario');
+  el('btnNextScenario').textContent = scenarioIdx < SCENARIOS.length - 1 ? 'Next Scenario →' : 'See Results';
+}
+
+function nextScenario() {
+  scenarioIdx++;
+  if (scenarioIdx >= SCENARIOS.length) {
+    el('scenarioCard').innerHTML = `<div class="scenario-num">Complete!</div><div class="scenario-text">You scored ${scenarioScore} / ${SCENARIOS.length} scenarios correctly.</div>`;
+    el('choiceList').innerHTML = '';
+    hide('btnNextScenario');
+    hide('outcomeBox');
+    el('scenarioProgress').style.width = '100%';
+    sendToApp({ type: 'quizScore', value: scenarioScore });
+    return;
+  }
+  loadScenario(scenarioIdx);
+}
+
+// ── ENCRYPTION ────────────────────────────────────────────────
+
+let shift = 3;
+
+function caesarCipher(text, sh) {
+  return text.toUpperCase().split('').map(ch => {
+    if (ch >= 'A' && ch <= 'Z') {
+      return String.fromCharCode(((ch.charCodeAt(0) - 65 + sh) % 26) + 65);
+    }
+    return ch;
+  }).join('');
+}
+
+function updateCipher() {
+  const input = el('cipherInput').value || '';
+  el('cipherOutput').textContent = input ? caesarCipher(input, shift) : '—';
+}
+
+function onShiftChange(val) {
+  shift = parseInt(val);
+  el('shiftBadge').textContent = `+${shift}`;
+  updateCipher();
+}
+
+// ── FIREWALL ──────────────────────────────────────────────────
+
+let rules = [
+  { proto: 'TCP', src: 'any',      port: '80',  action: 'allow' },
+  { proto: 'TCP', src: 'any',      port: '443', action: 'allow' },
+  { proto: 'TCP', src: '10.0.0.0', port: '22',  action: 'deny'  },
+];
+
+function renderRules() {
+  const list = el('ruleList');
+  list.innerHTML = rules.map((r, i) => `
+    <div class="fw-rule">
+      <select onchange="rules[${i}].proto=this.value" class="input select" style="min-height:32px;font-size:12px">
+        ${['TCP','UDP','ICMP'].map(p => `<option${r.proto===p?' selected':''}>${p}</option>`).join('')}
+      </select>
+      <input class="input" value="${r.src}" placeholder="any" style="min-height:32px;font-size:12px"
+        oninput="rules[${i}].src=this.value">
+      <input class="input" value="${r.port}" placeholder="any" style="min-height:32px;font-size:12px"
+        oninput="rules[${i}].port=this.value">
+      <div class="flex align-center gap-8">
+        <span class="fw-action ${r.action}" onclick="toggleAction(${i})">${r.action.toUpperCase()}</span>
+      </div>
+    </div>
+  `).join('');
+}
+
+function toggleAction(i) {
+  rules[i].action = rules[i].action === 'allow' ? 'deny' : 'allow';
+  renderRules();
+}
+
+function addRule() {
+  rules.push({ proto: 'TCP', src: 'any', port: 'any', action: 'allow' });
+  renderRules();
+}
+
+function testPacket() {
+  const proto = el('testProto').value;
+  const ip    = el('testIp').value.trim();
+  const port  = el('testPort').value.trim();
+
+  let result = 'allow'; // default if no rule matches
+  let matchedRule = null;
+
+  for (const rule of rules) {
+    const protoMatch = rule.proto === proto;
+    const srcMatch   = rule.src === 'any' || ip.startsWith(rule.src.replace(/\.\d+$/, ''));
+    const portMatch  = rule.port === 'any' || rule.port === port;
+    if (protoMatch && srcMatch && portMatch) {
+      result = rule.action;
+      matchedRule = rule;
+      break;
+    }
+  }
+
+  const fwResult = el('fwResult');
+  fwResult.classList.remove('hidden');
+  fwResult.innerHTML = `<div class="info-box ${result === 'allow' ? 'teal' : 'red'}">
+    ${result === 'allow' ? '✅ ALLOW' : '🚫 DENY'} — Packet ${proto} from ${ip}:${port}
+    ${matchedRule ? `<br><small>Matched rule: ${matchedRule.proto} / ${matchedRule.src} / port ${matchedRule.port}</small>` : '<br><small>No matching rule — default allow</small>'}
+  </div>`;
+}
+
+// ── MINI GAME ─────────────────────────────────────────────────
+
+let gameBlocked = 0;
+let gameMissed  = 0;
+let gameTimerVal = 20;
+let gameInterval = null;
+let packetInterval = null;
+let gameRunning = false;
+
+const PACKET_TEMPLATES = [
+  { text: 'TCP 192.168.1.5:3823 → :80 GET /index.html',        malicious: false },
+  { text: 'TCP 10.0.0.99:4444 → :22 SSH LOGIN ATTEMPT',         malicious: true  },
+  { text: 'UDP 8.8.8.8:53 DNS RESPONSE A 142.250.1.1',          malicious: false },
+  { text: 'TCP 172.16.0.1:80 → :443 HTTPS',                     malicious: false },
+  { text: 'ICMP 192.168.0.254 FLOOD x500',                      malicious: true  },
+  { text: 'TCP 203.0.113.5:9999 → :3306 SQL \'OR 1=1--',        malicious: true  },
+  { text: 'TCP 192.168.1.10:58923 → :443 HTTPS GET /api',       malicious: false },
+  { text: 'UDP 0.0.0.0:0 → :53 DNS AMPLIFICATION',              malicious: true  },
+  { text: 'TCP 10.0.0.5:80 → :8080 HTTP GET /dashboard',        malicious: false },
+  { text: 'TCP 45.33.32.156:1337 → :22 BRUTE FORCE DETECTED',   malicious: true  },
+];
+
+function startMiniGame() {
+  if (gameRunning) stopMiniGame();
+  gameBlocked = 0;
+  gameMissed  = 0;
+  gameTimerVal = 20;
+  gameRunning = true;
+  el('gameBlocked').textContent = 0;
+  el('gameMissed').textContent = 0;
+  el('gameTimer').textContent = '20s';
+  el('packetStream').innerHTML = '';
+  hide('gameResult');
+
+  packetInterval = setInterval(spawnPacket, 1400);
+
+  gameInterval = setInterval(() => {
+    gameTimerVal--;
+    el('gameTimer').textContent = gameTimerVal + 's';
+    if (gameTimerVal <= 0) {
+      stopMiniGame();
+      // Count unblocked malicious
+      document.querySelectorAll('.packet-item.malicious:not(.blocked)').forEach(p => {
+        p.classList.add('missed');
+        gameMissed++;
+      });
+      el('gameMissed').textContent = gameMissed;
+      showGameResult();
+    }
+  }, 1000);
+}
+
+function stopMiniGame() {
+  clearInterval(gameInterval);
+  clearInterval(packetInterval);
+  gameRunning = false;
+}
+
+function spawnPacket() {
+  const tmpl = PACKET_TEMPLATES[Math.floor(Math.random() * PACKET_TEMPLATES.length)];
+  const item = document.createElement('div');
+  item.className = `packet-item ${tmpl.malicious ? 'malicious' : 'normal'}`;
+  item.innerHTML = `<span>${tmpl.malicious ? '⚠️ ' : ''}${tmpl.text}</span><span>${tmpl.malicious ? '🚫' : '✓'}</span>`;
+
+  if (tmpl.malicious) {
+    item.onclick = () => {
+      if (item.classList.contains('blocked')) return;
+      item.classList.add('blocked');
+      gameBlocked++;
+      el('gameBlocked').textContent = gameBlocked;
+    };
+  }
+
+  const stream = el('packetStream');
+  stream.insertBefore(item, stream.firstChild);
+  if (stream.children.length > 12) stream.removeChild(stream.lastChild);
+}
+
+function showGameResult() {
+  const result = el('gameResult');
+  result.classList.remove('hidden');
+  const score = gameBlocked;
+  const msg = score >= 5 ? 'Excellent! You\'re a great firewall.' :
+              score >= 3 ? 'Good — a few malicious packets slipped through.' :
+              'The network was compromised. Practice your packet inspection!';
+  result.innerHTML = `<div class="info-box ${score >= 5 ? 'teal' : score >= 3 ? 'amber' : 'red'}">
+    Blocked: ${gameBlocked} | Missed: ${gameMissed}<br>${msg}
+  </div>`;
+  sendToApp({ type: 'quizScore', value: gameBlocked });
+}
+
+// ── Section nav ───────────────────────────────────────────────
+
+function showSection(name) {
+  ['scenario','encrypt','firewall','game'].forEach(s => {
+    el(`section${s.charAt(0).toUpperCase()+s.slice(1)}`).classList.toggle('hidden', s !== name);
+    el(`tab${s.charAt(0).toUpperCase()+s.slice(1)}`).classList.toggle('active', s === name);
+  });
+  if (name === 'firewall') renderRules();
+  if (name === 'game') stopMiniGame();
+}
+
+// ── Init ──────────────────────────────────────────────────────
+
+loadScenario(0);
+</script>
+</body>
+</html>

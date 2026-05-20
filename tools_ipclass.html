@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>IP Class Identifier</title>
+<link rel="stylesheet" href="style.css">
+<style>
+  .big-class {
+    font-size: 72px;
+    font-weight: 900;
+    line-height: 1;
+    text-align: center;
+    padding: 20px 0 10px;
+  }
+
+  .class-bar {
+    height: 10px;
+    border-radius: 99px;
+    margin: 4px 0;
+    position: relative;
+    overflow: visible;
+  }
+
+  .class-bar-inner {
+    height: 100%;
+    border-radius: 99px;
+    transition: width 0.4s ease;
+  }
+
+  .range-ruler {
+    display: flex;
+    justify-content: space-between;
+    font-size: 10px;
+    color: var(--text-muted);
+    font-family: monospace;
+    padding-top: 2px;
+  }
+
+  .quick-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+</style>
+</head>
+<body>
+<div class="screen">
+  <div class="header">
+    <button class="back-btn" onclick="history.back()">&#8592;</button>
+    <h1>IP Class Identifier</h1>
+  </div>
+
+  <div class="content">
+
+    <!-- Input -->
+    <div class="card">
+      <label class="label">Enter IP Address</label>
+      <input class="input mono" id="ipInput" placeholder="e.g. 192.168.1.1" oninput="classify()" value="192.168.1.1">
+    </div>
+
+    <!-- Quick examples -->
+    <div class="quick-chips">
+      <span class="chip" onclick="setIp('10.0.0.1')">10.0.0.1</span>
+      <span class="chip" onclick="setIp('172.20.5.1')">172.20.5.1</span>
+      <span class="chip" onclick="setIp('192.168.1.1')">192.168.1.1</span>
+      <span class="chip" onclick="setIp('224.0.0.1')">224.0.0.1</span>
+      <span class="chip" onclick="setIp('127.0.0.1')">127.0.0.1</span>
+      <span class="chip" onclick="setIp('8.8.8.8')">8.8.8.8</span>
+    </div>
+
+    <!-- Class display -->
+    <div class="card text-center" id="classCard" style="background:var(--primary-light)">
+      <div class="big-class" id="bigClass" style="color:var(--primary)">C</div>
+      <div class="badge badge-primary" id="classTypeBadge">Class C</div>
+    </div>
+
+    <!-- Info table -->
+    <div class="card">
+      <table class="result-table" id="infoTable">
+        <!-- filled by JS -->
+      </table>
+    </div>
+
+    <!-- Address space bar -->
+    <div class="card">
+      <div class="card-title">IPv4 Address Space</div>
+      <div style="display:flex;flex-direction:column;gap:6px">
+        <!-- rendered by JS -->
+      </div>
+      <div id="spaceBar"></div>
+    </div>
+
+  </div>
+</div>
+
+<script src="utils.js"></script>
+<script>
+const CLASS_DATA = {
+  A: {
+    range: '1.0.0.0 – 126.255.255.255',
+    first: 1, last: 126,
+    defaultMask: '255.0.0.0 (/8)',
+    privateRange: '10.0.0.0 – 10.255.255.255',
+    useCase: 'Very large networks (ISPs, governments). Supports 16 million hosts per network.',
+    bg: 'var(--primary-light)', color: 'var(--primary)',
+    barWidth: '49%', barColor: '#534AB7',
+  },
+  B: {
+    range: '128.0.0.0 – 191.255.255.255',
+    first: 128, last: 191,
+    defaultMask: '255.255.0.0 (/16)',
+    privateRange: '172.16.0.0 – 172.31.255.255',
+    useCase: 'Medium-to-large networks (universities, enterprises). 65,534 hosts per network.',
+    bg: 'var(--secondary-light)', color: 'var(--secondary)',
+    barWidth: '25%', barColor: '#1D9E75',
+  },
+  C: {
+    range: '192.0.0.0 – 223.255.255.255',
+    first: 192, last: 223,
+    defaultMask: '255.255.255.0 (/24)',
+    privateRange: '192.168.0.0 – 192.168.255.255',
+    useCase: 'Small networks (homes, small offices). Up to 254 hosts per network.',
+    bg: '#fbeaf0', color: '#be185d',
+    barWidth: '12.5%', barColor: '#be185d',
+  },
+  D: {
+    range: '224.0.0.0 – 239.255.255.255',
+    first: 224, last: 239,
+    defaultMask: 'N/A (Multicast)',
+    privateRange: 'N/A',
+    useCase: 'Multicast groups — streaming media, routing protocols (OSPF, RIP v2).',
+    bg: '#faeeda', color: '#b45309',
+    barWidth: '6.25%', barColor: '#f59e0b',
+  },
+  E: {
+    range: '240.0.0.0 – 255.255.255.255',
+    first: 240, last: 255,
+    defaultMask: 'N/A (Reserved)',
+    privateRange: 'N/A',
+    useCase: 'Reserved for experimental/research use. Not routable on the public Internet.',
+    bg: '#f3f4f6', color: '#6b7280',
+    barWidth: '6.25%', barColor: '#9ca3af',
+  },
+  Loopback: {
+    range: '127.0.0.0 – 127.255.255.255',
+    first: 127, last: 127,
+    defaultMask: '255.0.0.0 (/8)',
+    privateRange: 'Always private',
+    useCase: 'Loopback — packets never leave the host. Used for local testing (ping 127.0.0.1).',
+    bg: '#f0f4ff', color: '#3b4dbf',
+    barWidth: '0.4%', barColor: '#6366f1',
+  },
+};
+
+function setIp(ip) {
+  el('ipInput').value = ip;
+  classify();
+}
+
+function classify() {
+  const raw = el('ipInput').value.trim();
+  const parts = raw.split('.').map(Number);
+
+  if (parts.length !== 4 || parts.some(p => isNaN(p) || p < 0 || p > 255)) {
+    el('bigClass').textContent = '?';
+    el('infoTable').innerHTML = '<tr><td colspan="2" style="color:var(--text-muted)">Enter a valid IP address</td></tr>';
+    return;
+  }
+
+  const cls = getClass(parts[0]);
+  const data = CLASS_DATA[cls] || CLASS_DATA.E;
+  const priv = isPrivate(parts) || cls === 'Loopback';
+
+  // Class display
+  el('bigClass').textContent = cls;
+  el('bigClass').style.color = data.color;
+  el('classCard').style.background = data.bg;
+  el('classTypeBadge').textContent = cls === 'Loopback' ? 'Loopback' : `Class ${cls}`;
+  el('classTypeBadge').style.background = data.bg;
+  el('classTypeBadge').style.color = data.color;
+
+  // Info table
+  el('infoTable').innerHTML = `
+    <tr><td>Range</td><td>${data.range}</td></tr>
+    <tr><td>Default Mask</td><td>${data.defaultMask}</td></tr>
+    <tr><td>Private Range</td><td>${data.privateRange}</td></tr>
+    <tr><td>Public / Private</td><td>${priv ? '🔒 Private' : '🌐 Public'}</td></tr>
+    <tr><td>Use Case</td><td>${data.useCase}</td></tr>
+  `;
+
+  // Address space bar
+  renderSpaceBar(cls);
+}
+
+function renderSpaceBar(activeClass) {
+  const bar = el('spaceBar');
+  const classes = ['A','B','C','D','E'];
+  bar.innerHTML = `
+    <div style="display:flex;border-radius:8px;overflow:hidden;height:18px;gap:1px;margin-top:8px">
+      ${classes.map(c => {
+        const d = CLASS_DATA[c];
+        return `<div style="flex:${parseInt(d.barWidth)};background:${d.barColor};opacity:${c===activeClass?1:0.25};transition:opacity 0.3s" title="Class ${c}"></div>`;
+      }).join('')}
+    </div>
+    <div class="range-ruler">
+      <span>0.0.0.0</span>
+      ${classes.map(c => `<span style="color:${CLASS_DATA[c].barColor};font-weight:600">${c}</span>`).join('')}
+      <span>255.255.255.255</span>
+    </div>
+  `;
+}
+
+classify();
+</script>
+</body>
+</html>

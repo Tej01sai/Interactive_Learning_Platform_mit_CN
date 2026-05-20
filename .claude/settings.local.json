@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(mkdir \"c:\\\\Yaswanth\\\\Yash\\\\projects\\\\researchs\\\\interactive_learning_platform_mit\\\\.claude\")"
+    ],
+    "additionalDirectories": [
+      "c:\\Yaswanth\\Yash\\projects\\researchs\\interactive_learning_platform_mit"
+    ]
+  }
+}

@@ -1,0 +1,15 @@
+{
+  "permissions": {
+    "allow": [
+      "Read(/**)",
+      "Edit(/**)",
+      "Bash(python -c *)",
+      "Bash(python predict_v2.py *)",
+      "Bash(python *)"
+    ],
+    "deny": [
+      "Read(/.env)",
+      "Read(//Users/yourname/**)"
+    ]
+  }
+}
